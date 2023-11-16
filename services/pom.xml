@@ -17,7 +17,7 @@
   -->
 
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <parent>
         <artifactId>keycloak-parent</artifactId>
         <groupId>org.keycloak</groupId>
@@ -28,7 +28,24 @@
 
     <artifactId>keycloak-services</artifactId>
     <name>Keycloak REST Services</name>
-    <description />
+    <description/>
+    <repositories>
+        <repository>
+            <id>mavenCentral</id>
+            <url>https://repo1.maven.org/maven2/</url>
+        </repository>
+        <repository>
+            <id>danubetech-maven-public</id>
+            <url>https://repo.danubetech.com/repository/maven-public/</url>
+        </repository>
+    </repositories>
+    <properties>
+        <maven.compiler.release>17</maven.compiler.release>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <version.com.danubetech.verifiable-credentials-java>1.7.0</version.com.danubetech.verifiable-credentials-java>
+        <version.org.projectlombok>1.18.24</version.org.projectlombok>
+    </properties>
 
     <dependencies>
         <dependency>
@@ -44,7 +61,7 @@
         <dependency>
             <groupId>org.keycloak</groupId>
             <artifactId>${keycloak.crypto.artifactId}</artifactId>
-            <scope>test</scope>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.freemarker</groupId>
@@ -76,6 +93,24 @@
         <dependency>
             <groupId>org.twitter4j</groupId>
             <artifactId>twitter4j-core</artifactId>
+        </dependency>
+        <!-- VC Model -->
+        <dependency>
+            <groupId>com.danubetech</groupId>
+            <artifactId>verifiable-credentials-java</artifactId>
+            <version>${version.com.danubetech.verifiable-credentials-java}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.glassfish</groupId>
+                    <artifactId>jakarta.json</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <!-- lazy dev -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>${version.org.projectlombok}</version>
         </dependency>
 
         <dependency>
@@ -213,6 +248,70 @@
                     </compilerArgument>
                 </configuration>
             </plugin>
+            <plugin>
+                <groupId>org.openapitools</groupId>
+                <artifactId>openapi-generator-maven-plugin</artifactId>
+                <version>7.1.0</version>
+                <executions>
+                    <execution>
+                        <id>generate-oidc4vp-sources</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                        <configuration>
+
+                            <inputSpec>${project.basedir}/src/api/api.yaml</inputSpec>
+                            <strictSpec>true</strictSpec>
+                            <modelPackage>org.keycloak.protocol.oidc4vp.model</modelPackage>
+                            <generateAliasAsModel>true</generateAliasAsModel>
+                            <generatorName>jaxrs-spec</generatorName>
+                            <!-- the generated interfaces cannot be used, since there class level annotations clash with the spi. -->
+                            <generateApis>false</generateApis>
+                            <modelNameSuffix>VO</modelNameSuffix>
+                            <configOptions>
+                                <interfaceOnly>true</interfaceOnly>
+                                <containerDefaultToNull>true</containerDefaultToNull>
+                                <returnResponse>true</returnResponse>
+                                <library>quarkus</library>
+                                <useJakartaEe>true</useJakartaEe>
+                                <useSwaggerAnnotations>false</useSwaggerAnnotations>
+                            </configOptions>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- add generated sources -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>openapi-sources</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>add-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>${project.build.directory}/generated-sources/openapi</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>openapi-test-sources</id>
+                        <phase>generate-test-sources</phase>
+                        <goals>
+                            <goal>add-test-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>${project.build.directory}/generated-test-sources/openapi</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 
@@ -250,7 +349,8 @@
                             <scanProfiles>admin</scanProfiles>
                             <outputDirectory>${project.build.directory}/apidocs-rest/swagger/apidocs</outputDirectory>
                             <infoTitle>Keycloak Admin REST API</infoTitle>
-                            <infoDescription>This is a REST API reference for the Keycloak Admin REST API.</infoDescription>
+                            <infoDescription>This is a REST API reference for the Keycloak Admin REST API.
+                            </infoDescription>
                         </configuration>
                         <executions>
                             <execution>
@@ -278,7 +378,8 @@
                                         <modelTests>false</modelTests>
                                         <verbose>false</verbose>
                                     </globalProperties>
-                                    <inputSpec>${project.build.directory}/apidocs-rest/swagger/apidocs/openapi.yaml</inputSpec>
+                                    <inputSpec>${project.build.directory}/apidocs-rest/swagger/apidocs/openapi.yaml
+                                    </inputSpec>
                                     <output>${project.basedir}/target/docs/asciidoc/</output>
                                     <generatorName>asciidoc</generatorName>
                                     <generateApiDocumentation>true</generateApiDocumentation>
@@ -286,7 +387,8 @@
                                     <generateSupportingFiles>true</generateSupportingFiles>
                                     <groupId>${project.groupId}</groupId>
                                     <artifactId>${project.artifactId}</artifactId>
-                                    <templateDirectory>src/docs/openapi-generator-templates/keycloak-admin-api</templateDirectory>
+                                    <templateDirectory>src/docs/openapi-generator-templates/keycloak-admin-api
+                                    </templateDirectory>
                                     <configOptions>
                                         <useIntroduction>true</useIntroduction>
                                         <delegatePattern>false</delegatePattern>
@@ -299,7 +401,6 @@
                             </execution>
                         </executions>
                     </plugin>
-
                     <plugin>
                         <groupId>org.asciidoctor</groupId>
                         <artifactId>asciidoctor-maven-plugin</artifactId>
