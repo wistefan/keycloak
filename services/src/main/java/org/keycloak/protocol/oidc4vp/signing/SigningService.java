@@ -21,16 +21,18 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 public abstract class SigningService<T> implements VCSigningService<T> {
 
 	private static final Logger LOGGER = Logger.getLogger(SigningService.class);
 
 	protected final KeyPair signingKey;
+	protected final Optional<String> optionalKeyId;
 
-	protected SigningService(String keyPath) {
-
+	protected SigningService(String keyPath, Optional<String> optionalKeyId) {
 		this.signingKey = parsePem(loadPrivateKeyString(keyPath));
+		this.optionalKeyId = optionalKeyId;
 	}
 
 	protected String loadPrivateKeyString(String keyPath) {

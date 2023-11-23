@@ -15,6 +15,12 @@ import info.weboftrust.ldsignatures.signer.JcsEd25519Signature2020LdSigner;
 import info.weboftrust.ldsignatures.signer.JsonWebSignature2020LdSigner;
 import info.weboftrust.ldsignatures.signer.LdSigner;
 import info.weboftrust.ldsignatures.signer.RsaSignature2018LdSigner;
+import info.weboftrust.ldsignatures.suites.EcdsaSecp256k1Signature2019SignatureSuite;
+import info.weboftrust.ldsignatures.suites.Ed25519Signature2018SignatureSuite;
+import info.weboftrust.ldsignatures.suites.Ed25519Signature2020SignatureSuite;
+import info.weboftrust.ldsignatures.suites.JcsEd25519Signature2020SignatureSuite;
+import info.weboftrust.ldsignatures.suites.JsonWebSignature2020SignatureSuite;
+import info.weboftrust.ldsignatures.suites.RsaSignature2018SignatureSuite;
 import org.bitcoinj.core.ECKey;
 import org.jboss.logging.Logger;
 
@@ -29,9 +35,9 @@ public class LDSigningService extends SigningService<VerifiableCredential> {
 
 	private final Clock clock;
 
-	public LDSigningService(String keyPath,
+	public LDSigningService(String keyPath, Optional<String> keyId,
 			Clock clock) {
-		super(keyPath);
+		super(keyPath, keyId);
 		this.clock = clock;
 	}
 
@@ -43,7 +49,7 @@ public class LDSigningService extends SigningService<VerifiableCredential> {
 				.orElse(LDSignatureType.RSA_SIGNATURE_2018.getValue());
 		LDSignatureType signatureType = LDSignatureType.getByValue(proofType);
 		AlgorithmType algorithmType = AlgorithmType.getByValue(signingKey.getPrivate().getAlgorithm());
-		LdSigner ldSigner = switch (signatureType) {
+		var ldSigner = switch (signatureType) {
 			case RSA_SIGNATURE_2018 -> getRsaSigner(algorithmType);
 			case ED_25519_SIGNATURE_2018 -> getEd25519Signature2018Signer(algorithmType);
 			case ED_25519_SIGNATURE_2020 -> getEd25519Signature2020Signer(algorithmType);
@@ -51,7 +57,6 @@ public class LDSigningService extends SigningService<VerifiableCredential> {
 			case JSON_WEB_SIGNATURE_2020 -> getJsonWebSignature2020Signer(algorithmType);
 			case JCS_ED_25519_SIGNATURE_2020 -> getJcsEd25519Signature2020Signer(algorithmType);
 		};
-		// TODO: add key id
 		ldSigner.setProofPurpose(LDSecurityKeywords.JSONLD_TERM_ASSERTIONMETHOD);
 		ldSigner.setCreated(Date.from(clock.instant()));
 		try {
@@ -62,14 +67,14 @@ public class LDSigningService extends SigningService<VerifiableCredential> {
 		return verifiableCredential;
 	}
 
-	private LdSigner getJcsEd25519Signature2020Signer(AlgorithmType algorithmType) {
-		if (algorithmType != AlgorithmType.EdDSA_Ed25519) {
+	private LdSigner<JcsEd25519Signature2020SignatureSuite> getJcsEd25519Signature2020Signer(AlgorithmType algorithmType) {
+		if (algorithmType != AlgorithmType.ED_DSA_ED25519) {
 			throw new IllegalArgumentException("Signing key does not support JCS_ED_25519_SIGNATURE_2020.");
 		}
 		return new JcsEd25519Signature2020LdSigner(signingKey.getPrivate().getEncoded());
 	}
 
-	private LdSigner getJsonWebSignature2020Signer(AlgorithmType algorithmType) {
+	private LdSigner<JsonWebSignature2020SignatureSuite> getJsonWebSignature2020Signer(AlgorithmType algorithmType) {
 
 		String concreteAlgorithm = signingKey.getPrivate().getAlgorithm();
 
@@ -81,34 +86,34 @@ public class LDSigningService extends SigningService<VerifiableCredential> {
 					yield new RSA_PS256_PrivateKeySigner(signingKey);
 				}
 			}
-			case ECDSA_Secp256k1 -> getEcdsaSecp256k1Signature2019Signer(algorithmType).getSigner();
-			case EdDSA_Ed25519 -> new Ed25519_EdDSA_PrivateKeySigner(signingKey.getPrivate().getEncoded());
+			case ECDSA_SECP256K1 -> getEcdsaSecp256k1Signature2019Signer(algorithmType).getSigner();
+			case ED_DSA_ED25519 -> new Ed25519_EdDSA_PrivateKeySigner(signingKey.getPrivate().getEncoded());
 		};
 		return new JsonWebSignature2020LdSigner(byteSigner);
 	}
 
-	private LdSigner getEcdsaSecp256k1Signature2019Signer(AlgorithmType algorithmType) {
-		if (algorithmType != AlgorithmType.ECDSA_Secp256k1) {
+	private LdSigner<EcdsaSecp256k1Signature2019SignatureSuite> getEcdsaSecp256k1Signature2019Signer(AlgorithmType algorithmType) {
+		if (algorithmType != AlgorithmType.ECDSA_SECP256K1) {
 			throw new IllegalArgumentException("Signing key does not support ECDSA_SECP_256K1_SIGNATURE_2019.");
 		}
 		return new EcdsaSecp256k1Signature2019LdSigner(ECKey.fromPrivate(signingKey.getPrivate().getEncoded()));
 	}
 
-	private LdSigner getEd25519Signature2018Signer(AlgorithmType algorithmType) {
-		if (algorithmType != AlgorithmType.EdDSA_Ed25519) {
+	private LdSigner<Ed25519Signature2018SignatureSuite> getEd25519Signature2018Signer(AlgorithmType algorithmType) {
+		if (algorithmType != AlgorithmType.ED_DSA_ED25519) {
 			throw new IllegalArgumentException("Signing key does not support ED_25519_SIGNATURE_2018.");
 		}
 		return new Ed25519Signature2018LdSigner(signingKey.getPrivate().getEncoded());
 	}
 
-	private LdSigner getEd25519Signature2020Signer(AlgorithmType algorithmType) {
-		if (algorithmType != AlgorithmType.EdDSA_Ed25519) {
+	private LdSigner<Ed25519Signature2020SignatureSuite> getEd25519Signature2020Signer(AlgorithmType algorithmType) {
+		if (algorithmType != AlgorithmType.ED_DSA_ED25519) {
 			throw new IllegalArgumentException("Signing key does not support ED_25519_SIGNATURE_2020.");
 		}
 		return new Ed25519Signature2020LdSigner(signingKey.getPrivate().getEncoded());
 	}
 
-	private LdSigner getRsaSigner(AlgorithmType algorithmType) {
+	private LdSigner<RsaSignature2018SignatureSuite> getRsaSigner(AlgorithmType algorithmType) {
 		if (algorithmType != AlgorithmType.RSA) {
 			throw new IllegalArgumentException("Signing key does not support RSA_SIGNATURE_2018.");
 		}

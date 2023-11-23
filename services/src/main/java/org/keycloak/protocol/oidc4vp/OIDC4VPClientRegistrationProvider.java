@@ -73,7 +73,7 @@ public class OIDC4VPClientRegistrationProvider extends AbstractClientRegistratio
 	}
 
 	/**
-	 * Validates the clientrepresentation to fulfill the requirement of a SIOP-2 client
+	 * Validates the clientrepresentation to fulfill the requirement of a OIDC4VP client
 	 *
 	 * @param client
 	 */
@@ -84,7 +84,6 @@ public class OIDC4VPClientRegistrationProvider extends AbstractClientRegistratio
 					Response.Status.BAD_REQUEST);
 		}
 		if (!did.startsWith("did:")) {
-			// TODO: future implementations should check the actual validity of a did, instead of just the format
 			throw new ErrorResponseException("invalid_did", "The client did is not a valid did.",
 					Response.Status.BAD_REQUEST);
 		}
@@ -93,29 +92,30 @@ public class OIDC4VPClientRegistrationProvider extends AbstractClientRegistratio
 	/**
 	 * Translate an incoming {@link OIDC4VPClient} into a keycloak native {@link ClientRepresentation}.
 	 *
-	 * @param OIDC4VPClient pojo, containing the SIOP-2 client parameters
+	 * @param oidc4VPClient pojo, containing the SIOP-2 client parameters
 	 * @return a clientrepresentation, fitting keycloaks internal model
 	 */
-	protected static ClientRepresentation toClientRepresentation(OIDC4VPClient OIDC4VPClient) {
+	protected static ClientRepresentation toClientRepresentation(OIDC4VPClient oidc4VPClient) {
 		ClientRepresentation clientRepresentation = new ClientRepresentation();
 		// protocol needs to be SIOP-2
-		clientRepresentation.setProtocol(OIDC4VPLoginProtocolFactory.PROTOCOL_ID);
+		clientRepresentation.setProtocol(OIDC4VPClientRegistrationProviderFactory.PROTOCOL_ID);
 		// id and clientId cannot be equal since did's might be to long, already validated to be non-null
 		clientRepresentation.setId(UUID.randomUUID().toString());
-		clientRepresentation.setClientId(OIDC4VPClient.getClientDid());
+		clientRepresentation.setClientId(oidc4VPClient.getClientDid());
 		// only add non-null parameters
-		Optional.ofNullable(OIDC4VPClient.getDescription()).ifPresent(clientRepresentation::setDescription);
-		Optional.ofNullable(OIDC4VPClient.getName()).ifPresent(clientRepresentation::setName);
+		Optional.ofNullable(oidc4VPClient.getDescription()).ifPresent(clientRepresentation::setDescription);
+		Optional.ofNullable(oidc4VPClient.getName()).ifPresent(clientRepresentation::setName);
 
 		// add potential additional claims
 		Map<String, String> clientAttributes = new HashMap<>(
-				prefixClaims(VC_CLAIMS_PREFIX, OIDC4VPClient.getAdditionalClaims()));
+				prefixClaims(VC_CLAIMS_PREFIX, oidc4VPClient.getAdditionalClaims()));
 
 		// only set supported VCs if present
-		if (OIDC4VPClient.getSupportedVCTypes() != null) {
-			OIDC4VPClient.getSupportedVCTypes()
+		if (oidc4VPClient.getSupportedVCTypes() != null) {
+			oidc4VPClient.getSupportedVCTypes()
 					.forEach(supportedCredential -> {
-						String typeKey = String.format("%s%s", VC_TYPES_PREFIX, supportedCredential.getType());
+						String typeKey = Optional.ofNullable(supportedCredential.getId())
+								.orElse(String.format("%s%s", VC_TYPES_PREFIX, supportedCredential.getTypes().get(0)));
 						if (clientAttributes.containsKey(typeKey)) {
 							clientAttributes.put(typeKey, String.format("%s,%s",
 									clientAttributes.get(typeKey),

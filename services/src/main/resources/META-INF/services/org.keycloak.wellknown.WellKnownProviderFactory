@@ -15,5 +15,6 @@
 # limitations under the License.
 #
 
-org.keycloak.protocol.oidc.OIDCWellKnownProviderFactory
 org.keycloak.authorization.config.UmaWellKnownProviderFactory
+org.keycloak.protocol.oidc4vp.OIDC4VPIssuerWellKnownProviderFactory
+org.keycloak.protocol.oidc4vp.OIDC4VPWellKnownProviderFactory

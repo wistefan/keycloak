@@ -4,8 +4,8 @@ import java.util.List;
 
 public enum AlgorithmType {
 
-	EdDSA_Ed25519(List.of("eddsa", "ed25519", "eddsa_ed25519")),
-	ECDSA_Secp256k1(List.of("ecdsa", "secp256k1", "ecdsa_secp256k1")),
+	ED_DSA_ED25519(List.of("eddsa", "ed25519", "eddsa_ed25519")),
+	ECDSA_SECP256K1(List.of("ecdsa", "secp256k1", "ecdsa_secp256k1")),
 	RSA(List.of("rsa", "ps256", "rs256"));
 
 	private final List<String> values;

@@ -33,7 +33,7 @@ public class OIDC4VPLoginProtocolFactory implements LoginProtocolFactory {
 
 	private static final Logger LOGGER = Logger.getLogger(OIDC4VPLoginProtocolFactory.class);
 
-	public static final String PROTOCOL_ID = "SIOP-2";
+	public static final String PROTOCOL_ID = "oidc4vp";
 
 	private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 	private static final String CLIENT_ROLES_MAPPER = "client-roles";
@@ -45,11 +45,10 @@ public class OIDC4VPLoginProtocolFactory implements LoginProtocolFactory {
 
 	private final Clock clock = Clock.systemUTC();
 
-
 	private Map<String, ProtocolMapperModel> builtins = new HashMap<>();
 
 	@Override public void init(Config.Scope config) {
-
+		LOGGER.info("Initiate the protocol factory");
 		builtins.put(CLIENT_ROLES_MAPPER,
 				OIDC4VPTargetRoleMapper.create("id", "client roles"));
 		builtins.put(SUBJECT_ID_MAPPER,
@@ -65,9 +64,11 @@ public class OIDC4VPLoginProtocolFactory implements LoginProtocolFactory {
 	}
 
 	@Override public void postInit(KeycloakSessionFactory factory) {
+		// no-op
 	}
 
 	@Override public void close() {
+		// no-op
 	}
 
 	@Override
@@ -78,7 +79,7 @@ public class OIDC4VPLoginProtocolFactory implements LoginProtocolFactory {
 	@Override
 	public Object createProtocolEndpoint(KeycloakSession keycloakSession, EventBuilder event) {
 
-		LOGGER.debug("Create vc-issuer protocol endpoint");
+		LOGGER.info("Create vc-issuer protocol endpoint");
 
 		String issuerDid = Optional.ofNullable(keycloakSession.getContext().getRealm().getAttribute("issuerDid"))
 				.orElseThrow(() -> new VCIssuerException("No issuerDid  configured."));
@@ -88,7 +89,9 @@ public class OIDC4VPLoginProtocolFactory implements LoginProtocolFactory {
 				keycloakSession,
 				issuerDid, keyPath,
 				new AppAuthManager.BearerTokenAuthenticator(
-						keycloakSession), OBJECT_MAPPER, clock
+						keycloakSession),
+				OBJECT_MAPPER,
+				clock
 		);
 	}
 
@@ -101,7 +104,7 @@ public class OIDC4VPLoginProtocolFactory implements LoginProtocolFactory {
 			naturalPersonScope = newRealm.addClientScope("natural_person");
 			naturalPersonScope.setDescription(
 					"SIOP-2 Scope, that adds all properties required for a natural person.");
-			naturalPersonScope.setProtocol(PROTOCOL_ID);
+			naturalPersonScope.setProtocol(OIDC4VPClientRegistrationProviderFactory.PROTOCOL_ID);
 			naturalPersonScope.addProtocolMapper(builtins.get(SUBJECT_ID_MAPPER));
 			naturalPersonScope.addProtocolMapper(builtins.get(CLIENT_ROLES_MAPPER));
 			naturalPersonScope.addProtocolMapper(builtins.get(EMAIL_MAPPER));

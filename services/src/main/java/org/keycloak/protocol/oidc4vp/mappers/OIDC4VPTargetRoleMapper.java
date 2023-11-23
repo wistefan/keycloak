@@ -10,7 +10,7 @@ import org.keycloak.models.ClientModel;
 import org.keycloak.models.ProtocolMapperModel;
 import org.keycloak.models.RoleModel;
 import org.keycloak.models.UserSessionModel;
-import org.keycloak.protocol.oidc4vp.OIDC4VPLoginProtocolFactory;
+import org.keycloak.protocol.oidc4vp.OIDC4VPClientRegistrationProviderFactory;
 import org.keycloak.protocol.oidc4vp.model.Role;
 import org.keycloak.provider.ProviderConfigProperty;
 
@@ -33,7 +33,8 @@ public class OIDC4VPTargetRoleMapper extends OIDC4VPMapper {
 
 	private static final List<ProviderConfigProperty> CONFIG_PROPERTIES = new ArrayList<>();
 
-	{
+	public OIDC4VPTargetRoleMapper() {
+		super();
 		ProviderConfigProperty subjectPropertyNameConfig = new ProviderConfigProperty();
 		subjectPropertyNameConfig.setName(SUBJECT_PROPERTY_CONFIG_KEY);
 		subjectPropertyNameConfig.setLabel("Roles Property Name");
@@ -42,7 +43,6 @@ public class OIDC4VPTargetRoleMapper extends OIDC4VPMapper {
 		subjectPropertyNameConfig.setType(ProviderConfigProperty.STRING_TYPE);
 		CONFIG_PROPERTIES.add(subjectPropertyNameConfig);
 	}
-
 	@Override protected List<ProviderConfigProperty> getIndividualConfigProperties() {
 		return CONFIG_PROPERTIES;
 	}
@@ -62,7 +62,7 @@ public class OIDC4VPTargetRoleMapper extends OIDC4VPMapper {
 		configMap.put(SUBJECT_PROPERTY_CONFIG_KEY, "roles");
 		configMap.put(CLIENT_CONFIG_KEY, clientId);
 		mapperModel.setConfig(configMap);
-		mapperModel.setProtocol(OIDC4VPLoginProtocolFactory.PROTOCOL_ID);
+		mapperModel.setProtocol(OIDC4VPClientRegistrationProviderFactory.PROTOCOL_ID);
 		mapperModel.setProtocolMapper(MAPPER_ID);
 		return mapperModel;
 	}
@@ -84,7 +84,7 @@ public class OIDC4VPTargetRoleMapper extends OIDC4VPMapper {
 		String propertyName = mapperModel.getConfig().get(SUBJECT_PROPERTY_CONFIG_KEY);
 		LOGGER.infof("Client is %s", client);
 		ClientModel clientModel = userSessionModel.getRealm().getClientByClientId(client);
-		if (clientModel == null || !clientModel.getProtocol().equals(OIDC4VPLoginProtocolFactory.PROTOCOL_ID)) {
+		if (clientModel == null || !clientModel.getProtocol().equals(OIDC4VPClientRegistrationProviderFactory.PROTOCOL_ID)) {
 			return;
 		}
 

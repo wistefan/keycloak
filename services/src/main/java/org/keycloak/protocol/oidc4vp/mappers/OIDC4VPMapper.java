@@ -1,16 +1,16 @@
 package org.keycloak.protocol.oidc4vp.mappers;
 
 import com.danubetech.verifiablecredentials.VerifiableCredential;
-import org.jboss.logging.Logger;
 import org.keycloak.Config;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.models.ProtocolMapperModel;
 import org.keycloak.models.UserSessionModel;
 import org.keycloak.protocol.ProtocolMapper;
-import org.keycloak.protocol.oidc4vp.OIDC4VPLoginProtocolFactory;
+import org.keycloak.protocol.oidc4vp.OIDC4VPClientRegistrationProviderFactory;
 import org.keycloak.provider.ProviderConfigProperty;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -19,15 +19,13 @@ import java.util.stream.Stream;
 
 public abstract class OIDC4VPMapper implements ProtocolMapper {
 
-	private static final Logger LOGGER = Logger.getLogger(OIDC4VPMapper.class);
-
 	protected static final String SUPPORTED_CREDENTIALS_KEY = "supportedCredentialTypes";
 
 	protected ProtocolMapperModel mapperModel;
 
-	private static List<ProviderConfigProperty> SIOP_CONFIG_PROPERTIES;
+	private static final List<ProviderConfigProperty> OIDC4VP_CONFIG_PROPERTIES = new ArrayList<>();
 
-	{
+	protected OIDC4VPMapper() {
 		ProviderConfigProperty supportedCredentialsConfig = new ProviderConfigProperty();
 		supportedCredentialsConfig.setType(ProviderConfigProperty.STRING_TYPE);
 		supportedCredentialsConfig.setLabel("Supported Credential Types");
@@ -35,13 +33,14 @@ public abstract class OIDC4VPMapper implements ProtocolMapper {
 		supportedCredentialsConfig.setHelpText(
 				"Types of Credentials to apply the mapper. Needs to be a comma-seperated list.");
 		supportedCredentialsConfig.setName(SUPPORTED_CREDENTIALS_KEY);
-		SIOP_CONFIG_PROPERTIES = List.of(supportedCredentialsConfig);
+		OIDC4VP_CONFIG_PROPERTIES.clear();
+		OIDC4VP_CONFIG_PROPERTIES.add(supportedCredentialsConfig);
 	}
 
 	protected abstract List<ProviderConfigProperty> getIndividualConfigProperties();
 
 	@Override public List<ProviderConfigProperty> getConfigProperties() {
-		return Stream.concat(SIOP_CONFIG_PROPERTIES.stream(), getIndividualConfigProperties().stream()).toList();
+		return Stream.concat(OIDC4VP_CONFIG_PROPERTIES.stream(), getIndividualConfigProperties().stream()).toList();
 	}
 
 	public OIDC4VPMapper setMapperModel(ProtocolMapperModel mapperModel) {
@@ -50,7 +49,7 @@ public abstract class OIDC4VPMapper implements ProtocolMapper {
 	}
 
 	@Override public String getProtocol() {
-		return OIDC4VPLoginProtocolFactory.PROTOCOL_ID;
+		return OIDC4VPClientRegistrationProviderFactory.PROTOCOL_ID;
 	}
 
 	@Override public ProtocolMapper create(KeycloakSession session) {

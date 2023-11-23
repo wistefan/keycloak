@@ -5,7 +5,7 @@ import org.keycloak.models.ProtocolMapperModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.UserSessionModel;
 import org.keycloak.models.utils.KeycloakModelUtils;
-import org.keycloak.protocol.oidc4vp.OIDC4VPLoginProtocolFactory;
+import org.keycloak.protocol.oidc4vp.OIDC4VPClientRegistrationProviderFactory;
 import org.keycloak.provider.ProviderConfigProperty;
 
 import java.util.ArrayList;
@@ -28,7 +28,8 @@ public class OIDC4VPUserAttributeMapper extends OIDC4VPMapper {
 
 	private static final List<ProviderConfigProperty> CONFIG_PROPERTIES = new ArrayList<>();
 
-	{
+	public OIDC4VPUserAttributeMapper() {
+		super();
 		ProviderConfigProperty subjectPropertyNameConfig = new ProviderConfigProperty();
 		subjectPropertyNameConfig.setName(SUBJECT_PROPERTY_CONFIG_KEY);
 		subjectPropertyNameConfig.setLabel("Attribute Property Name");
@@ -52,7 +53,6 @@ public class OIDC4VPUserAttributeMapper extends OIDC4VPMapper {
 		aggregateAttributesConfig.setHelpText("Should the mapper aggregate user attributes.");
 		aggregateAttributesConfig.setType(ProviderConfigProperty.BOOLEAN_TYPE);
 		CONFIG_PROPERTIES.add(aggregateAttributesConfig);
-
 	}
 
 	@Override protected List<ProviderConfigProperty> getIndividualConfigProperties() {
@@ -87,7 +87,7 @@ public class OIDC4VPUserAttributeMapper extends OIDC4VPMapper {
 		configMap.put(USER_ATTRIBUTE_KEY, userAttribute);
 		configMap.put(AGGREGATE_ATTRIBUTES_KEY, Boolean.toString(aggregateAttributes));
 		mapperModel.setConfig(configMap);
-		mapperModel.setProtocol(OIDC4VPLoginProtocolFactory.PROTOCOL_ID);
+		mapperModel.setProtocol(OIDC4VPClientRegistrationProviderFactory.PROTOCOL_ID);
 		mapperModel.setProtocolMapper(MAPPER_ID);
 		return mapperModel;
 	}

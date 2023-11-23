@@ -16,7 +16,8 @@
 ~ limitations under the License.
 
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
@@ -41,9 +42,11 @@
 
         <jboss.repo.nexusUrl>https://s01.oss.sonatype.org/</jboss.repo.nexusUrl>
         <jboss.releases.repo.id>jboss-releases-repository</jboss.releases.repo.id>
-        <jboss.releases.repo.url>https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/</jboss.releases.repo.url>
+        <jboss.releases.repo.url>https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/
+        </jboss.releases.repo.url>
         <jboss.snapshots.repo.id>jboss-snapshots-repository</jboss.snapshots.repo.id>
-        <jboss.snapshots.repo.url>https://s01.oss.sonatype.org/content/repositories/snapshots/</jboss.snapshots.repo.url>
+        <jboss.snapshots.repo.url>https://s01.oss.sonatype.org/content/repositories/snapshots/
+        </jboss.snapshots.repo.url>
 
         <quarkus.version>3.2.7.Final</quarkus.version>
         <quarkus.build.version>3.2.7.Final</quarkus.build.version>
@@ -109,8 +112,10 @@
         <jboss-servlet-api_4.0_spec>2.0.0.Final</jboss-servlet-api_4.0_spec>
         <jboss.logmanager>2.1.19.Final</jboss.logmanager>
         <jboss.marshalling.version>2.0.11.Final</jboss.marshalling.version>
-        <jboss.spec.javax.xml.bind.jboss-jaxb-api_2.3_spec.version>2.0.1.Final</jboss.spec.javax.xml.bind.jboss-jaxb-api_2.3_spec.version>
-        <jboss.spec.javax.servlet.jsp.jboss-jsp-api_2.3_spec.version>2.0.0.Final</jboss.spec.javax.servlet.jsp.jboss-jsp-api_2.3_spec.version>
+        <jboss.spec.javax.xml.bind.jboss-jaxb-api_2.3_spec.version>2.0.1.Final
+        </jboss.spec.javax.xml.bind.jboss-jaxb-api_2.3_spec.version>
+        <jboss.spec.javax.servlet.jsp.jboss-jsp-api_2.3_spec.version>2.0.0.Final
+        </jboss.spec.javax.servlet.jsp.jboss-jsp-api_2.3_spec.version>
         <log4j.version>1.2.17</log4j.version>
         <resteasy-legacy.version>4.7.7.Final</resteasy-legacy.version>
         <resteasy.version>6.2.4.Final</resteasy.version>
@@ -205,7 +210,9 @@
         <surefire.memory.Xmx>2048m</surefire.memory.Xmx>
         <surefire.memory.metaspace>96m</surefire.memory.metaspace>
         <surefire.memory.metaspace.max>512m</surefire.memory.metaspace.max>
-        <surefire.memory.settings>-Xms${surefire.memory.Xms} -Xmx${surefire.memory.Xmx} -XX:MetaspaceSize=${surefire.memory.metaspace} -XX:MaxMetaspaceSize=${surefire.memory.metaspace.max}</surefire.memory.settings>
+        <surefire.memory.settings>-Xms${surefire.memory.Xms} -Xmx${surefire.memory.Xmx}
+            -XX:MetaspaceSize=${surefire.memory.metaspace} -XX:MaxMetaspaceSize=${surefire.memory.metaspace.max}
+        </surefire.memory.settings>
         <surefire.system.args></surefire.system.args>
 
         <!-- Tomcat versions -->
@@ -223,7 +230,8 @@
         <!-- WildFly Galleon Build related properties -->
         <org.wildfly.galleon-plugins.version>6.4.2.Final</org.wildfly.galleon-plugins.version>
         <org.jboss.galleon.version>5.1.0.Final</org.jboss.galleon.version>
-        <org.wildfly.maven.plugins.licenses-plugin.version>2.3.1.Final</org.wildfly.maven.plugins.licenses-plugin.version>
+        <org.wildfly.maven.plugins.licenses-plugin.version>2.3.1.Final
+        </org.wildfly.maven.plugins.licenses-plugin.version>
 
         <!-- Galleon -->
         <galleon.fork.embedded>true</galleon.fork.embedded>
@@ -238,7 +246,7 @@
         <!-- Frontend -->
         <node.version>v18.18.2</node.version>
         <pnpm.version>8.10.0</pnpm.version>
-        <pnpm.args.install>install --prefer-offline --frozen-lockfile --ignore-scripts</pnpm.args.install>
+        <pnpm.args.install>install --prefer-offline --no-frozen-lockfile --ignore-scripts</pnpm.args.install>
     </properties>
 
     <url>http://keycloak.org</url>
@@ -303,7 +311,16 @@
         <module>js</module>
         <module>quarkus</module>
     </modules>
-
+    <repositories>
+        <repository>
+            <id>mavenCentral</id>
+            <url>https://repo1.maven.org/maven2/</url>
+        </repository>
+        <repository>
+            <id>danubetech-maven-public</id>
+            <url>https://repo.danubetech.com/repository/maven-public/</url>
+        </repository>
+    </repositories>
     <dependencyManagement>
 
         <dependencies>
@@ -1720,6 +1737,11 @@
                 <artifactId>jboss-servlet-api_4.0_spec</artifactId>
                 <version>${jboss-servlet-api_4.0_spec}</version>
             </dependency>
+            <dependency>
+                <groupId>com.danubetech</groupId>
+                <artifactId>verifiable-credentials-java</artifactId>
+                <version>1.7.0</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -1767,7 +1789,10 @@
                     <artifactId>maven-surefire-plugin</artifactId>
                     <version>${surefire-plugin.version}</version>
                     <configuration>
-                        <argLine>-Djava.awt.headless=true ${surefire.memory.settings} ${surefire.system.args} -Duser.language=en -Duser.region=US -XX:+ExitOnOutOfMemoryError -XX:+HeapDumpOnOutOfMemoryError</argLine>
+                        <argLine>-Djava.awt.headless=true ${surefire.memory.settings} ${surefire.system.args}
+                            -Duser.language=en -Duser.region=US -XX:+ExitOnOutOfMemoryError
+                            -XX:+HeapDumpOnOutOfMemoryError
+                        </argLine>
                         <runOrder>alphabetical</runOrder>
                         <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
                     </configuration>

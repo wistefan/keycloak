@@ -6,12 +6,14 @@ import com.danubetech.verifiablecredentials.jwt.ToJwtConverter;
 import com.nimbusds.jose.JOSEException;
 import org.bitcoinj.core.ECKey;
 
+import java.util.Optional;
+
 public class JWTSigningService extends SigningService<String> {
 
 	private final AlgorithmType algorithmType;
 
-	public JWTSigningService(String keyPath){
-		super(keyPath);
+	public JWTSigningService(String keyPath, Optional<String> optionalKeyId){
+		super(keyPath, optionalKeyId);
 		algorithmType = getAlgorithmType();
 	}
 
@@ -34,9 +36,9 @@ public class JWTSigningService extends SigningService<String> {
 						yield jwtVerifiableCredential.sign_RSA_RS256(signingKey);
 					}
 				}
-				case ECDSA_Secp256k1 -> jwtVerifiableCredential.sign_secp256k1_ES256K(
+				case ECDSA_SECP256K1 -> jwtVerifiableCredential.sign_secp256k1_ES256K(
 						ECKey.fromPrivate(signingKey.getPrivate().getEncoded()));
-				case EdDSA_Ed25519 -> jwtVerifiableCredential.sign_Ed25519_EdDSA(signingKey.getPrivate().getEncoded());
+				case ED_DSA_ED25519 -> jwtVerifiableCredential.sign_Ed25519_EdDSA(signingKey.getPrivate().getEncoded());
 
 			};
 		} catch (JOSEException e) {

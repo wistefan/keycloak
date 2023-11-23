@@ -3,7 +3,7 @@ package org.keycloak.protocol.oidc4vp.mappers;
 import com.danubetech.verifiablecredentials.VerifiableCredential;
 import org.keycloak.models.ProtocolMapperModel;
 import org.keycloak.models.UserSessionModel;
-import org.keycloak.protocol.oidc4vp.OIDC4VPLoginProtocolFactory;
+import org.keycloak.protocol.oidc4vp.OIDC4VPClientRegistrationProviderFactory;
 import org.keycloak.provider.ProviderConfigProperty;
 
 import java.util.ArrayList;
@@ -19,7 +19,8 @@ public class OIDC4VPSubjectIdMapper extends OIDC4VPMapper {
 
 	private static final List<ProviderConfigProperty> CONFIG_PROPERTIES = new ArrayList<>();
 
-	{
+	public OIDC4VPSubjectIdMapper() {
+		super();
 		ProviderConfigProperty idPropertyNameConfig = new ProviderConfigProperty();
 		idPropertyNameConfig.setName(ID_KEY);
 		idPropertyNameConfig.setLabel("ID Property Name");
@@ -41,7 +42,7 @@ public class OIDC4VPSubjectIdMapper extends OIDC4VPMapper {
 		configMap.put(ID_KEY, subjectId);
 		configMap.put(SUPPORTED_CREDENTIALS_KEY, "VerifiableCredential");
 		mapperModel.setConfig(configMap);
-		mapperModel.setProtocol(OIDC4VPLoginProtocolFactory.PROTOCOL_ID);
+		mapperModel.setProtocol(OIDC4VPClientRegistrationProviderFactory.PROTOCOL_ID);
 		mapperModel.setProtocolMapper(MAPPER_ID);
 		return mapperModel;
 	}

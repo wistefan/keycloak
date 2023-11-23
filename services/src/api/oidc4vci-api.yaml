@@ -27,12 +27,10 @@ paths:
                 type: string
                 example: did:key:z6MkkSMQG86ZC5pcJUXNg1evKugKjstRbUhWmMKwt1hE3Pmq
 
-  /{issuerDid}/.well-known/openid-credential-issuer:
+  /.well-known/openid-credential-issuer:
     get:
       tags:
         - OIDC4VCI
-      parameters:
-        - $ref: '#/components/parameters/IssuerDid'
       operationId: getIssuerMetadata
       description: "https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-issuer-metadata-"
       summary: Return the issuer metadata
@@ -43,29 +41,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CredentialIssuer'
-  /{issuerDid}/alt/.well-known/openid-credential-issuer:
-    get:
-      tags:
-        - OIDC4VCI
-      parameters:
-        - $ref: '#/components/parameters/IssuerDid'
-      operationId: getAlternativeIssuerMetadata
-      description: "https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-issuer-metadata-"
-      summary: Return the issuer metadata
-      responses:
-        '200':
-          description: The credentials issuer metadata
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CredentialIssuerAlt'
-
-  /{issuerDid}/credential:
+  /credential:
     post:
       tags:
         - OIDC4VCI
-      parameters:
-        - $ref: '#/components/parameters/IssuerDid'
       operationId: requestCredential
       summary: Request a credential from the issuer
       description: "https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-request"
@@ -89,12 +68,10 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /{issuerDid}/.well-known/openid-configuration:
+  /.well-known/openid-configuration:
     get:
       tags:
         - OIDC4VCI
-      parameters:
-        - $ref: '#/components/parameters/IssuerDid'
       operationId: getOpenIdConfig
       summary: provide SIOP-2 metadata
       responses:
@@ -105,13 +82,10 @@ paths:
               schema:
                 $ref: '#/components/schemas/SIOPMetadata'
 
-  /{issuerDid}/token:
+  /token:
     post:
       tags:
         - OIDC4VCI
-      parameters:
-        - $ref: '#/components/parameters/IssuerDid'
-      operationId: exchangeToken
       description: Token endpoint to exchange pre_authorized codes for access tokens.
       requestBody:
         description: The token request to be exchanged
@@ -127,12 +101,10 @@ paths:
               schema:
                 $ref: '#/components/schemas/TokenResponse'
 
-  /{issuerDid}/types:
+  /types:
     get:
       tags:
         - IssuerPlugin
-      parameters:
-        - $ref: '#/components/parameters/IssuerDid'
       description: Convenience endpoint, provides all available type and format combinations available for the loggedin user.
       operationId: getTypes
       responses:
@@ -154,15 +126,13 @@ paths:
                     - type
                     - format
 
-  /{issuerDid}/credential-offer-uri:
+  /credential-offer-uri:
     get:
       tags:
         - IssuerPlugin
         - OIDC4VCI
       parameters:
-        - $ref: '#/components/parameters/IssuerDid'
-        - $ref: '#/components/parameters/VcType'
-        - $ref: '#/components/parameters/VcFormat'
+        - $ref: '#/components/parameters/VcId'
       description: Endpoint to retrieve a nonce for an OIDC4VCI compliant offer, that can f.e. be used in QR-Code presented to a compliant wallet.
       operationId: getCredentialOfferURI
       responses:
@@ -179,7 +149,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /{issuerDid}/credential-offer/{nonce}:
+  /credential-offer/{nonce}:
     get:
       tags:
         - IssuerPlugin
@@ -201,12 +171,11 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-  /{issuerDid}/:
+  /:
     get:
       tags:
         - IssuerPlugin
       parameters:
-        - $ref: '#/components/parameters/IssuerDid'
         - $ref: '#/components/parameters/VcType'
         - $ref: '#/components/parameters/Token'
       description: Convenience endpoint to return verifiable credentials accoridng to the request. Will always be in ldp_vc format
@@ -250,6 +219,13 @@ components:
       required: true
       schema:
         $ref: '#/components/schemas/Format'
+    VcId:
+      description: Id of the requested credential, needs to be one of the supported_credentials
+      name: credentialId
+      in: query
+      schema:
+        type: string
+        example: BatteryPassAuthCredential_jwt_vc_json-ld
     Token:
       description: JWT to be used for getting the VC. Intended for compatibility with the demo wallet
       name: token
@@ -401,18 +377,11 @@ components:
             - unsupported_credential_format
             - invalid_or_missing_proof
           example: "invalid_request"
-    SupportedCredentialAlt:
-      type: object
-      properties:
-        formats:
-          additionalProperties:
-            $ref:  '#/components/schemas/SupportedCredential'
     SupportedCredential:
       type: object
       properties:
         format:
-          type: object
-          description: "oneOf: $ref: '#/components/schemas/Format', '#/components/schemas/CredentialObject'"
+          $ref: '#/components/schemas/Format'
         id:
           type: string
           example: "UniversityDegree_JWT"
@@ -441,45 +410,6 @@ components:
           $ref: '#/components/schemas/DisplayObject'
       required:
         - format
-    CredentialIssuerAlt:
-      type: object
-      properties:
-        grant_types_supported:
-          type: array
-          items:
-            type: string
-        credential_issuer:
-          type: string
-          format: url
-          description: The Credential Issuer's identifier
-          example: https://kc-one.batterypass.fiware.dev/realms/fiware-server/verifiable-credential
-        issuer:
-          type: string
-          format: url
-          description: The Credential Issuer's identifier
-          example: https://kc-one.batterypass.fiware.dev/realms/fiware-server/verifiable-credential
-        credential_endpoint:
-          type: string
-          format: url
-          description: URL of the Credential Issuer's Credential Endpoint. This URL MUST use the https scheme and MAY contain port, path and query parameter components.
-          example: https://kc-one.batterypass.fiware.dev/realms/fiware-server/verifiable-credential/credential
-        batch_credential_endpoint:
-          type: string
-          format: url
-          description: URL of the Credential Issuer's Batch Credential Endpoint. This URL MUST use the https scheme and MAY contain port, path and query parameter components. If omitted, the Credential Issuer does not support the Batch Credential Endpoint.
-        token_endpoint:
-          type: string
-          format: url
-        credentials_supported:
-          type: object
-          additionalProperties:
-            $ref: '#/components/schemas/SupportedCredentialAlt'
-        display:
-          $ref: '#/components/schemas/DisplayObject'
-      required:
-        - credential_issuer
-        - credential_endpoint
-        - credentials_supported
     CredentialIssuer:
       type: object
       properties:
