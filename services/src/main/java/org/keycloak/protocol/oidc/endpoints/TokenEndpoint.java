@@ -244,17 +244,14 @@ public class TokenEndpoint {
 	}
 
 	private void checkSsl() {
-		if (!session.getContext().getUri().getBaseUri().getScheme().equals("https") && realm.getSslRequired()
-				.isRequired(clientConnection)) {
-			throw new CorsErrorResponseException(cors.allowAllOrigins(), OAuthErrorException.INVALID_REQUEST,
-					"HTTPS required", Response.Status.FORBIDDEN);
+		if (!session.getContext().getUri().getBaseUri().getScheme().equals("https") && realm.getSslRequired().isRequired(clientConnection)) {
+			throw new CorsErrorResponseException(cors.allowAllOrigins(), OAuthErrorException.INVALID_REQUEST, "HTTPS required", Response.Status.FORBIDDEN);
 		}
 	}
 
 	private void checkRealm() {
 		if (!realm.isEnabled()) {
-			throw new CorsErrorResponseException(cors.allowAllOrigins(), "access_denied", "Realm not enabled",
-					Response.Status.FORBIDDEN);
+			throw new CorsErrorResponseException(cors.allowAllOrigins(), "access_denied", "Realm not enabled", Response.Status.FORBIDDEN);
 		}
 	}
 
@@ -267,16 +264,13 @@ public class TokenEndpoint {
 		cors.allowedOrigins(session, client);
 
 		if (client.isBearerOnly()) {
-			throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_CLIENT, "Bearer-only not allowed",
-					Response.Status.BAD_REQUEST);
+			throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_CLIENT, "Bearer-only not allowed", Response.Status.BAD_REQUEST);
 		}
-
 	}
 
 	private void checkGrantType() {
 		if (grantType == null) {
-			throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_REQUEST,
-					"Missing form parameter: " + OIDCLoginProtocol.GRANT_TYPE_PARAM, Response.Status.BAD_REQUEST);
+			throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_REQUEST, "Missing form parameter: " + OIDCLoginProtocol.GRANT_TYPE_PARAM, Response.Status.BAD_REQUEST);
 		}
 
 		if (grantType.equals(OAuth2Constants.AUTHORIZATION_CODE)) {
@@ -335,13 +329,11 @@ public class TokenEndpoint {
 
 		if (clientConfig.isUseDPoP() || request.getHttpHeaders().getHeaderString(DPoPUtil.DPOP_HTTP_HEADER) != null) {
 			try {
-				dPoP = new DPoPUtil.Validator(session).request(request).uriInfo(session.getContext().getUri())
-						.validate();
+				dPoP = new DPoPUtil.Validator(session).request(request).uriInfo(session.getContext().getUri()).validate();
 				session.setAttribute(DPoPUtil.DPOP_SESSION_ATTRIBUTE, dPoP);
 			} catch (VerificationException ex) {
 				event.error(Errors.INVALID_DPOP_PROOF);
-				throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_DPOP_PROOF, ex.getMessage(),
-						Response.Status.BAD_REQUEST);
+				throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_DPOP_PROOF, ex.getMessage(), Response.Status.BAD_REQUEST);
 			}
 		}
 	}
@@ -398,8 +390,7 @@ public class TokenEndpoint {
 		String code = formParams.getFirst(OAuth2Constants.CODE);
 		if (code == null) {
 			event.error(Errors.INVALID_CODE);
-			throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_REQUEST,
-					"Missing parameter: " + OAuth2Constants.CODE, Response.Status.BAD_REQUEST);
+			throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_REQUEST, "Missing parameter: " + OAuth2Constants.CODE, Response.Status.BAD_REQUEST);
 		}
 
 		OAuth2CodeParser.ParseResult parseResult = OAuth2CodeParser.parseCode(session, code, realm, event);
@@ -413,16 +404,14 @@ public class TokenEndpoint {
 
 			event.error(Errors.INVALID_CODE);
 
-			throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_GRANT, "Code not valid",
-					Response.Status.BAD_REQUEST);
+			throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_GRANT, "Code not valid", Response.Status.BAD_REQUEST);
 		}
 
 		AuthenticatedClientSessionModel clientSession = parseResult.getClientSession();
 
 		if (parseResult.isExpiredCode()) {
 			event.error(Errors.EXPIRED_CODE);
-			throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_GRANT, "Code is expired",
-					Response.Status.BAD_REQUEST);
+			throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_GRANT, "Code is expired", Response.Status.BAD_REQUEST);
 		}
 
 		UserSessionModel userSession = null;
@@ -432,23 +421,20 @@ public class TokenEndpoint {
 
 		if (userSession == null) {
 			event.error(Errors.USER_SESSION_NOT_FOUND);
-			throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_GRANT, "User session not found",
-					Response.Status.BAD_REQUEST);
+			throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_GRANT, "User session not found", Response.Status.BAD_REQUEST);
 		}
 
 		UserModel user = userSession.getUser();
 		if (user == null) {
 			event.error(Errors.USER_NOT_FOUND);
-			throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_GRANT, "User not found",
-					Response.Status.BAD_REQUEST);
+			throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_GRANT, "User not found", Response.Status.BAD_REQUEST);
 		}
 
 		event.user(userSession.getUser());
 
 		if (!user.isEnabled()) {
 			event.error(Errors.USER_DISABLED);
-			throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_GRANT, "User disabled",
-					Response.Status.BAD_REQUEST);
+			throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_GRANT, "User disabled", Response.Status.BAD_REQUEST);
 		}
 
 		OAuth2Code codeData = parseResult.getCodeData();
@@ -456,8 +442,7 @@ public class TokenEndpoint {
 		String redirectUriParam = formParams.getFirst(OAuth2Constants.REDIRECT_URI);
 
 		// KEYCLOAK-4478 Backwards compatibility with the adapters earlier than KC 3.4.2
-		if (redirectUriParam != null && redirectUriParam.contains("session_state=") && !redirectUri.contains(
-				"session_state=")) {
+		if (redirectUriParam != null && redirectUriParam.contains("session_state=") && !redirectUri.contains("session_state=")) {
 			redirectUriParam = KeycloakUriBuilder.fromUri(redirectUriParam)
 					.replaceQueryParam(OAuth2Constants.SESSION_STATE, null)
 					.build().toString();
@@ -465,29 +450,23 @@ public class TokenEndpoint {
 
 		if (redirectUri != null && !redirectUri.equals(redirectUriParam)) {
 			event.error(Errors.INVALID_CODE);
-			logger.tracef(
-					"Parameter 'redirect_uri' did not match originally saved redirect URI used in initial OIDC request. Saved redirectUri: %s, redirectUri parameter: %s",
-					redirectUri, redirectUriParam);
-			throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_GRANT, "Incorrect redirect_uri",
-					Response.Status.BAD_REQUEST);
+			logger.tracef("Parameter 'redirect_uri' did not match originally saved redirect URI used in initial OIDC request. Saved redirectUri: %s, redirectUri parameter: %s", redirectUri, redirectUriParam);
+			throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_GRANT, "Incorrect redirect_uri", Response.Status.BAD_REQUEST);
 		}
 
 		if (!client.getClientId().equals(clientSession.getClient().getClientId())) {
 			event.error(Errors.INVALID_CODE);
-			throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_GRANT, "Auth error",
-					Response.Status.BAD_REQUEST);
+			throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_GRANT, "Auth error", Response.Status.BAD_REQUEST);
 		}
 
 		if (!client.isStandardFlowEnabled()) {
 			event.error(Errors.NOT_ALLOWED);
-			throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_GRANT,
-					"Client not allowed to exchange code", Response.Status.BAD_REQUEST);
+			throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_GRANT, "Client not allowed to exchange code", Response.Status.BAD_REQUEST);
 		}
 
 		if (!AuthenticationManager.isSessionValid(realm, userSession)) {
 			event.error(Errors.USER_SESSION_NOT_FOUND);
-			throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_GRANT, "Session not active",
-					Response.Status.BAD_REQUEST);
+			throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_GRANT, "Session not active", Response.Status.BAD_REQUEST);
 		}
 
 		// https://tools.ietf.org/html/rfc7636#section-4.6
@@ -504,21 +483,17 @@ public class TokenEndpoint {
 		}
 
 		if (codeChallengeMethod != null && !codeChallengeMethod.isEmpty()) {
-			PkceUtils.checkParamsForPkceEnforcedClient(codeVerifier, codeChallenge, codeChallengeMethod, authUserId,
-					authUsername, event, cors);
+			PkceUtils.checkParamsForPkceEnforcedClient(codeVerifier, codeChallenge, codeChallengeMethod, authUserId, authUsername, event, cors);
 		} else {
 			// PKCE Activation is OFF, execute the codes implemented in KEYCLOAK-2604
-			PkceUtils.checkParamsForPkceNotEnforcedClient(codeVerifier, codeChallenge, codeChallengeMethod,
-					authUserId,
-					authUsername, event, cors);
+			PkceUtils.checkParamsForPkceNotEnforcedClient(codeVerifier, codeChallenge, codeChallengeMethod, authUserId, authUsername, event, cors);
 		}
 
 		try {
 			session.clientPolicy().triggerOnEvent(new TokenRequestContext(formParams, parseResult));
 		} catch (ClientPolicyException cpe) {
 			event.error(cpe.getError());
-			throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_GRANT, cpe.getErrorDetail(),
-					Response.Status.BAD_REQUEST);
+			throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_GRANT, cpe.getErrorDetail(), Response.Status.BAD_REQUEST);
 		}
 
 		updateClientSession(clientSession);
@@ -527,16 +502,13 @@ public class TokenEndpoint {
 		// Compute client scopes again from scope parameter. Check if user still has them granted
 		// (but in code-to-token request, it could just theoretically happen that they are not available)
 		String scopeParam = codeData.getScope();
-		Supplier<Stream<ClientScopeModel>> clientScopesSupplier = () -> TokenManager.getRequestedClientScopes(
-				scopeParam, client);
+		Supplier<Stream<ClientScopeModel>> clientScopesSupplier = () -> TokenManager.getRequestedClientScopes(scopeParam, client);
 		if (!TokenManager.verifyConsentStillAvailable(session, user, client, clientScopesSupplier.get())) {
 			event.error(Errors.NOT_ALLOWED);
-			throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_SCOPE,
-					"Client no longer has requested consent from user", Response.Status.BAD_REQUEST);
+			throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_SCOPE, "Client no longer has requested consent from user", Response.Status.BAD_REQUEST);
 		}
 
-		ClientSessionContext clientSessionCtx = DefaultClientSessionContext.fromClientSessionAndScopeParameter(
-				clientSession, scopeParam, session);
+		ClientSessionContext clientSessionCtx = DefaultClientSessionContext.fromClientSessionAndScopeParameter(clientSession, scopeParam, session);
 
 		// Set nonce as an attribute in the ClientSessionContext. Will be used for the token generation
 		clientSessionCtx.setAttribute(OIDCLoginProtocol.NONCE_PARAM, codeData.getNonce());
@@ -546,12 +518,9 @@ public class TokenEndpoint {
 		});
 	}
 
-	public Response createTokenResponse(UserModel user, UserSessionModel userSession,
-			ClientSessionContext clientSessionCtx,
-			String scopeParam, boolean code,
-			Function<TokenManager.AccessTokenResponseBuilder, ClientPolicyContext> clientPolicyContextGenerator) {
-		AccessToken token = tokenManager.createClientAccessToken(session, realm, client, user, userSession,
-				clientSessionCtx);
+	public Response createTokenResponse(UserModel user, UserSessionModel userSession, ClientSessionContext clientSessionCtx,
+										String scopeParam, boolean code, Function<TokenManager.AccessTokenResponseBuilder, ClientPolicyContext> clientPolicyContextGenerator) {
+		AccessToken token = tokenManager.createClientAccessToken(session, realm, client, user, userSession, clientSessionCtx);
 
 		TokenManager.AccessTokenResponseBuilder responseBuilder = tokenManager
 				.responseBuilder(realm, client, event, session, userSession, clientSessionCtx).accessToken(token);
@@ -561,8 +530,7 @@ public class TokenEndpoint {
 		}
 
 		checkAndBindMtlsHoKToken(responseBuilder, useRefreshToken);
-		checkAndBindDPoPToken(responseBuilder, useRefreshToken && client.isPublicClient(),
-				Profile.isFeatureEnabled(Profile.Feature.DPOP));
+		checkAndBindDPoPToken(responseBuilder, useRefreshToken && client.isPublicClient(), Profile.isFeatureEnabled(Profile.Feature.DPOP));
 
 		if (TokenUtil.isOIDCRequest(scopeParam)) {
 			responseBuilder.generateIDToken().generateAccessTokenHash();
@@ -573,8 +541,7 @@ public class TokenEndpoint {
 				session.clientPolicy().triggerOnEvent(clientPolicyContextGenerator.apply(responseBuilder));
 			} catch (ClientPolicyException cpe) {
 				event.error(cpe.getError());
-				throw new CorsErrorResponseException(cors, cpe.getError(), cpe.getErrorDetail(),
-						cpe.getErrorStatus());
+				throw new CorsErrorResponseException(cors, cpe.getError(), cpe.getErrorDetail(), cpe.getErrorStatus());
 			}
 		}
 
@@ -599,13 +566,11 @@ public class TokenEndpoint {
 		return cors.builder(Response.ok(res).type(MediaType.APPLICATION_JSON_TYPE)).build();
 	}
 
-	private void checkAndBindMtlsHoKToken(TokenManager.AccessTokenResponseBuilder responseBuilder,
-			boolean useRefreshToken) {
+	private void checkAndBindMtlsHoKToken(TokenManager.AccessTokenResponseBuilder responseBuilder, boolean useRefreshToken) {
 		// KEYCLOAK-6771 Certificate Bound Token
 		// https://tools.ietf.org/html/draft-ietf-oauth-mtls-08#section-3
 		if (clientConfig.isUseMtlsHokToken()) {
-			AccessToken.Confirmation confirmation = MtlsHoKTokenUtil.bindTokenWithClientCertificate(request,
-					session);
+			AccessToken.Confirmation confirmation = MtlsHoKTokenUtil.bindTokenWithClientCertificate(request, session);
 			if (confirmation != null) {
 				responseBuilder.getAccessToken().setConfirmation(confirmation);
 				if (useRefreshToken) {
@@ -619,9 +584,7 @@ public class TokenEndpoint {
 		}
 	}
 
-	private void checkAndBindDPoPToken(TokenManager.AccessTokenResponseBuilder responseBuilder,
-			boolean useRefreshToken,
-			boolean isDPoPSupported) {
+	private void checkAndBindDPoPToken(TokenManager.AccessTokenResponseBuilder responseBuilder, boolean useRefreshToken, boolean isDPoPSupported) {
 		if (!isDPoPSupported)
 			return;
 
@@ -642,8 +605,7 @@ public class TokenEndpoint {
 
 		String refreshToken = formParams.getFirst(OAuth2Constants.REFRESH_TOKEN);
 		if (refreshToken == null) {
-			throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_REQUEST, "No refresh token",
-					Response.Status.BAD_REQUEST);
+			throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_REQUEST, "No refresh token", Response.Status.BAD_REQUEST);
 		}
 
 		try {
@@ -657,24 +619,18 @@ public class TokenEndpoint {
 		AccessTokenResponse res;
 		try {
 			// KEYCLOAK-6771 Certificate Bound Token
-			TokenManager.AccessTokenResponseBuilder responseBuilder = tokenManager.refreshAccessToken(session,
-					session.getContext().getUri(), clientConnection, realm, client, refreshToken, event, headers,
-					request);
+			TokenManager.AccessTokenResponseBuilder responseBuilder = tokenManager.refreshAccessToken(session, session.getContext().getUri(), clientConnection, realm, client, refreshToken, event, headers, request);
 
 			session.clientPolicy().triggerOnEvent(new TokenRefreshResponseContext(formParams, responseBuilder));
 
 			checkAndBindMtlsHoKToken(responseBuilder, clientConfig.isUseRefreshToken());
-			checkAndBindDPoPToken(responseBuilder,
-					clientConfig.isUseRefreshToken() && (client.isPublicClient() || client.isBearerOnly()),
-					Profile.isFeatureEnabled(Profile.Feature.DPOP));
+			checkAndBindDPoPToken(responseBuilder, clientConfig.isUseRefreshToken() && (client.isPublicClient() || client.isBearerOnly()), Profile.isFeatureEnabled(Profile.Feature.DPOP));
 
 			res = responseBuilder.build();
 
 			if (!responseBuilder.isOfflineToken()) {
-				UserSessionModel userSession = lockUserSessionsForModification(session,
-						() -> session.sessions().getUserSession(realm, res.getSessionState()));
-				AuthenticatedClientSessionModel clientSession = userSession.getAuthenticatedClientSessionByClient(
-						client.getId());
+				UserSessionModel userSession = lockUserSessionsForModification(session, () -> session.sessions().getUserSession(realm, res.getSessionState()));
+				AuthenticatedClientSessionModel clientSession = userSession.getAuthenticatedClientSessionByClient(client.getId());
 				updateClientSession(clientSession);
 				updateUserSessionFromClientAuth(userSession);
 			}
@@ -683,12 +639,10 @@ public class TokenEndpoint {
 			// KEYCLOAK-6771 Certificate Bound Token
 			if (MtlsHoKTokenUtil.CERT_VERIFY_ERROR_DESC.equals(e.getDescription())) {
 				event.error(Errors.NOT_ALLOWED);
-				throw new CorsErrorResponseException(cors, e.getError(), e.getDescription(),
-						Response.Status.UNAUTHORIZED);
+				throw new CorsErrorResponseException(cors, e.getError(), e.getDescription(), Response.Status.UNAUTHORIZED);
 			} else {
 				event.error(Errors.INVALID_TOKEN);
-				throw new CorsErrorResponseException(cors, e.getError(), e.getDescription(),
-						Response.Status.BAD_REQUEST);
+				throw new CorsErrorResponseException(cors, e.getError(), e.getDescription(), Response.Status.BAD_REQUEST);
 			}
 		} catch (ClientPolicyException cpe) {
 			event.error(cpe.getError());
@@ -710,9 +664,7 @@ public class TokenEndpoint {
 		String adapterSessionId = formParams.getFirst(AdapterConstants.CLIENT_SESSION_STATE);
 		if (adapterSessionId != null) {
 			String adapterSessionHost = formParams.getFirst(AdapterConstants.CLIENT_SESSION_HOST);
-			logger.debugf("Adapter Session '%s' saved in ClientSession for client '%s'. Host is '%s'",
-					adapterSessionId,
-					client.getClientId(), adapterSessionHost);
+			logger.debugf("Adapter Session '%s' saved in ClientSession for client '%s'. Host is '%s'", adapterSessionId, client.getClientId(), adapterSessionHost);
 
 			String oldClientSessionState = clientSession.getNote(AdapterConstants.CLIENT_SESSION_STATE);
 			if (!adapterSessionId.equals(oldClientSessionState)) {
@@ -737,14 +689,12 @@ public class TokenEndpoint {
 
 		if (!client.isDirectAccessGrantsEnabled()) {
 			event.error(Errors.NOT_ALLOWED);
-			throw new CorsErrorResponseException(cors, OAuthErrorException.UNAUTHORIZED_CLIENT,
-					"Client not allowed for direct access grants", Response.Status.BAD_REQUEST);
+			throw new CorsErrorResponseException(cors, OAuthErrorException.UNAUTHORIZED_CLIENT, "Client not allowed for direct access grants", Response.Status.BAD_REQUEST);
 		}
 
 		if (client.isConsentRequired()) {
 			event.error(Errors.CONSENT_DENIED);
-			throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_CLIENT,
-					"Client requires user consent", Response.Status.BAD_REQUEST);
+			throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_CLIENT, "Client requires user consent", Response.Status.BAD_REQUEST);
 		}
 
 		try {
@@ -756,14 +706,12 @@ public class TokenEndpoint {
 
 		String scope = getRequestedScopes();
 
-		RootAuthenticationSessionModel rootAuthSession = new AuthenticationSessionManager(
-				session).createAuthenticationSession(realm, false);
+		RootAuthenticationSessionModel rootAuthSession = new AuthenticationSessionManager(session).createAuthenticationSession(realm, false);
 		AuthenticationSessionModel authSession = rootAuthSession.createAuthenticationSession(client);
 
 		authSession.setProtocol(OIDCLoginProtocol.LOGIN_PROTOCOL);
 		authSession.setAction(AuthenticatedClientSessionModel.Action.AUTHENTICATE.name());
-		authSession.setClientNote(OIDCLoginProtocol.ISSUER,
-				Urls.realmIssuer(session.getContext().getUri().getBaseUri(), realm.getName()));
+		authSession.setClientNote(OIDCLoginProtocol.ISSUER, Urls.realmIssuer(session.getContext().getUri().getBaseUri(), realm.getName()));
 		authSession.setClientNote(OIDCLoginProtocol.SCOPE_PARAM, scope);
 
 		AuthenticationFlowModel flow = AuthenticationFlowResolver.resolveDirectGrantFlow(authSession);
@@ -790,9 +738,7 @@ public class TokenEndpoint {
 			// Remove authentication session as "Resource Owner Password Credentials Grant" is single-request scoped authentication
 			new AuthenticationSessionManager(session).removeAuthenticationSession(realm, authSession, false);
 			event.error(Errors.RESOLVE_REQUIRED_ACTIONS);
-			throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_GRANT,
-					"Account is not fully set up",
-					Response.Status.BAD_REQUEST);
+			throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_GRANT, "Account is not fully set up", Response.Status.BAD_REQUEST);
 
 		}
 
@@ -803,8 +749,7 @@ public class TokenEndpoint {
 		updateUserSessionFromClientAuth(userSession);
 
 		TokenManager.AccessTokenResponseBuilder responseBuilder = tokenManager
-				.responseBuilder(realm, client, event, session, userSession, clientSessionCtx)
-				.generateAccessToken();
+				.responseBuilder(realm, client, event, session, userSession, clientSessionCtx).generateAccessToken();
 		boolean useRefreshToken = clientConfig.isUseRefreshToken();
 		if (useRefreshToken) {
 			responseBuilder.generateRefreshToken();
@@ -818,9 +763,7 @@ public class TokenEndpoint {
 		checkAndBindMtlsHoKToken(responseBuilder, useRefreshToken);
 
 		try {
-			session.clientPolicy().triggerOnEvent(
-					new ResourceOwnerPasswordCredentialsResponseContext(formParams, clientSessionCtx,
-							responseBuilder));
+			session.clientPolicy().triggerOnEvent(new ResourceOwnerPasswordCredentialsResponseContext(formParams, clientSessionCtx, responseBuilder));
 		} catch (ClientPolicyException cpe) {
 			event.error(cpe.getError());
 			throw new CorsErrorResponseException(cors, cpe.getError(), cpe.getErrorDetail(), cpe.getErrorStatus());
@@ -837,28 +780,22 @@ public class TokenEndpoint {
 	public Response clientCredentialsGrant() {
 		if (client.isBearerOnly()) {
 			event.error(Errors.INVALID_CLIENT);
-			throw new CorsErrorResponseException(cors, OAuthErrorException.UNAUTHORIZED_CLIENT,
-					"Bearer-only client not allowed to retrieve service account", Response.Status.UNAUTHORIZED);
+			throw new CorsErrorResponseException(cors, OAuthErrorException.UNAUTHORIZED_CLIENT, "Bearer-only client not allowed to retrieve service account", Response.Status.UNAUTHORIZED);
 		}
 		if (client.isPublicClient()) {
 			event.error(Errors.INVALID_CLIENT);
-			throw new CorsErrorResponseException(cors, OAuthErrorException.UNAUTHORIZED_CLIENT,
-					"Public client not allowed to retrieve service account", Response.Status.UNAUTHORIZED);
+			throw new CorsErrorResponseException(cors, OAuthErrorException.UNAUTHORIZED_CLIENT, "Public client not allowed to retrieve service account", Response.Status.UNAUTHORIZED);
 		}
 		if (!client.isServiceAccountsEnabled()) {
 			event.error(Errors.INVALID_CLIENT);
-			throw new CorsErrorResponseException(cors, OAuthErrorException.UNAUTHORIZED_CLIENT,
-					"Client not enabled to retrieve service account", Response.Status.UNAUTHORIZED);
+			throw new CorsErrorResponseException(cors, OAuthErrorException.UNAUTHORIZED_CLIENT, "Client not enabled to retrieve service account", Response.Status.UNAUTHORIZED);
 		}
 
 		UserModel clientUser = session.users().getServiceAccount(client);
 
-		if (clientUser == null || client.getProtocolMapperByName(OIDCLoginProtocol.LOGIN_PROTOCOL,
-				ServiceAccountConstants.CLIENT_ID_PROTOCOL_MAPPER) == null) {
+		if (clientUser == null || client.getProtocolMapperByName(OIDCLoginProtocol.LOGIN_PROTOCOL, ServiceAccountConstants.CLIENT_ID_PROTOCOL_MAPPER) == null) {
 			// May need to handle bootstrap here as well
-			logger.debugf(
-					"Service account user for client '%s' not found or default protocol mapper for service account not found. Creating now",
-					client.getClientId());
+			logger.debugf("Service account user for client '%s' not found or default protocol mapper for service account not found. Creating now", client.getClientId());
 			new ClientManager(new RealmManager(session)).enableServiceAccount(client);
 			clientUser = session.users().getServiceAccount(client);
 		}
@@ -869,20 +806,17 @@ public class TokenEndpoint {
 
 		if (!clientUser.isEnabled()) {
 			event.error(Errors.USER_DISABLED);
-			throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_REQUEST,
-					"User '" + clientUsername + "' disabled", Response.Status.UNAUTHORIZED);
+			throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_REQUEST, "User '" + clientUsername + "' disabled", Response.Status.UNAUTHORIZED);
 		}
 
 		String scope = getRequestedScopes();
 
-		RootAuthenticationSessionModel rootAuthSession = new AuthenticationSessionManager(
-				session).createAuthenticationSession(realm, false);
+		RootAuthenticationSessionModel rootAuthSession = new AuthenticationSessionManager(session).createAuthenticationSession(realm, false);
 		AuthenticationSessionModel authSession = rootAuthSession.createAuthenticationSession(client);
 
 		authSession.setAuthenticatedUser(clientUser);
 		authSession.setProtocol(OIDCLoginProtocol.LOGIN_PROTOCOL);
-		authSession.setClientNote(OIDCLoginProtocol.ISSUER,
-				Urls.realmIssuer(session.getContext().getUri().getBaseUri(), realm.getName()));
+		authSession.setClientNote(OIDCLoginProtocol.ISSUER, Urls.realmIssuer(session.getContext().getUri().getBaseUri(), realm.getName()));
 		authSession.setClientNote(OIDCLoginProtocol.SCOPE_PARAM, scope);
 
 		// persisting of userSession by default
@@ -894,36 +828,29 @@ public class TokenEndpoint {
 			sessionPersistenceState = UserSessionModel.SessionPersistenceState.TRANSIENT;
 		}
 
-		UserSessionModel userSession = new UserSessionManager(session).createUserSession(
-				authSession.getParentSession().getId(), realm, clientUser, clientUsername,
-				clientConnection.getRemoteAddr(), ServiceAccountConstants.CLIENT_AUTH, false, null, null,
-				sessionPersistenceState);
+		UserSessionModel userSession = new UserSessionManager(session).createUserSession(authSession.getParentSession().getId(), realm, clientUser, clientUsername,
+				clientConnection.getRemoteAddr(), ServiceAccountConstants.CLIENT_AUTH, false, null, null, sessionPersistenceState);
 		event.session(userSession);
 
 		AuthenticationManager.setClientScopesInSession(authSession);
-		ClientSessionContext clientSessionCtx = TokenManager.attachAuthenticationSession(session, userSession,
-				authSession);
+		ClientSessionContext clientSessionCtx = TokenManager.attachAuthenticationSession(session, userSession, authSession);
 
 		// Notes about client details
-		userSession.setNote(ServiceAccountConstants.CLIENT_ID_SESSION_NOTE,
-				client.getClientId()); // This is for backwards compatibility
+		userSession.setNote(ServiceAccountConstants.CLIENT_ID_SESSION_NOTE, client.getClientId()); // This is for backwards compatibility
 		userSession.setNote(ServiceAccountConstants.CLIENT_ID, client.getClientId());
 		userSession.setNote(ServiceAccountConstants.CLIENT_HOST, clientConnection.getRemoteHost());
 		userSession.setNote(ServiceAccountConstants.CLIENT_ADDRESS, clientConnection.getRemoteAddr());
 
 		try {
-			session.clientPolicy().triggerOnEvent(
-					new ServiceAccountTokenRequestContext(formParams, clientSessionCtx.getClientSession()));
+			session.clientPolicy().triggerOnEvent(new ServiceAccountTokenRequestContext(formParams, clientSessionCtx.getClientSession()));
 		} catch (ClientPolicyException cpe) {
 			event.error(cpe.getError());
-			throw new CorsErrorResponseException(cors, cpe.getError(), cpe.getErrorDetail(),
-					Response.Status.BAD_REQUEST);
+			throw new CorsErrorResponseException(cors, cpe.getError(), cpe.getErrorDetail(), Response.Status.BAD_REQUEST);
 		}
 
 		updateUserSessionFromClientAuth(userSession);
 
-		TokenManager.AccessTokenResponseBuilder responseBuilder = tokenManager.responseBuilder(realm, client, event,
-						session, userSession, clientSessionCtx)
+		TokenManager.AccessTokenResponseBuilder responseBuilder = tokenManager.responseBuilder(realm, client, event, session, userSession, clientSessionCtx)
 				.generateAccessToken();
 
 		// Make refresh token generation optional, see KEYCLOAK-9551
@@ -941,13 +868,10 @@ public class TokenEndpoint {
 		}
 
 		try {
-			session.clientPolicy().triggerOnEvent(
-					new ServiceAccountTokenResponseContext(formParams, clientSessionCtx.getClientSession(),
-							responseBuilder));
+			session.clientPolicy().triggerOnEvent(new ServiceAccountTokenResponseContext(formParams, clientSessionCtx.getClientSession(), responseBuilder));
 		} catch (ClientPolicyException cpe) {
 			event.error(cpe.getError());
-			throw new CorsErrorResponseException(cors, cpe.getError(), cpe.getErrorDetail(),
-					Response.Status.BAD_REQUEST);
+			throw new CorsErrorResponseException(cors, cpe.getError(), cpe.getErrorDetail(), Response.Status.BAD_REQUEST);
 		}
 
 		// TODO : do the same as codeToToken()
@@ -972,8 +896,7 @@ public class TokenEndpoint {
 
 		boolean validScopes;
 		if (Profile.isFeatureEnabled(Profile.Feature.DYNAMIC_SCOPES)) {
-			AuthorizationRequestContext authorizationRequestContext = AuthorizationContextUtil.getAuthorizationRequestContextFromScopes(
-					session, scope);
+			AuthorizationRequestContext authorizationRequestContext = AuthorizationContextUtil.getAuthorizationRequestContextFromScopes(session, scope);
 			validScopes = TokenManager.isValidScope(scope, authorizationRequestContext, client);
 		} else {
 			validScopes = TokenManager.isValidScope(scope, client);
@@ -981,8 +904,7 @@ public class TokenEndpoint {
 
 		if (!validScopes) {
 			event.error(Errors.INVALID_REQUEST);
-			throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_SCOPE,
-					"Invalid scopes: " + scope,
+			throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_SCOPE, "Invalid scopes: " + scope,
 					Status.BAD_REQUEST);
 		}
 
@@ -1043,9 +965,7 @@ public class TokenEndpoint {
 				} catch (JWSInputException ignore) {
 				}
 				event.error(Errors.INVALID_TOKEN);
-				throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_GRANT,
-						"Invalid bearer token",
-						Status.UNAUTHORIZED);
+				throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_GRANT, "Invalid bearer token", Status.UNAUTHORIZED);
 			}
 
 			ClientModel client = realm.getClientByClientId(accessToken.getIssuedFor());
@@ -1087,8 +1007,7 @@ public class TokenEndpoint {
 			}
 		}
 
-		AuthorizationTokenService.KeycloakAuthorizationRequest authorizationRequest = new AuthorizationTokenService.KeycloakAuthorizationRequest(
-				session.getProvider(AuthorizationProvider.class),
+		AuthorizationTokenService.KeycloakAuthorizationRequest authorizationRequest = new AuthorizationTokenService.KeycloakAuthorizationRequest(session.getProvider(AuthorizationProvider.class),
 				tokenManager, event, this.request, cors, clientConnection);
 
 		authorizationRequest.setTicket(formParams.getFirst("ticket"));
@@ -1102,8 +1021,7 @@ public class TokenEndpoint {
 			AccessToken accessToken = session.tokens().decode(rpt, AccessToken.class);
 			if (accessToken == null) {
 				event.error(Errors.INVALID_REQUEST);
-				throw new CorsErrorResponseException(cors, "invalid_rpt", "RPT signature is invalid",
-						Status.FORBIDDEN);
+				throw new CorsErrorResponseException(cors, "invalid_rpt", "RPT signature is invalid", Status.FORBIDDEN);
 			}
 
 			authorizationRequest.setRpt(accessToken);
@@ -1126,10 +1044,8 @@ public class TokenEndpoint {
 		if (permissions != null) {
 			event.detail(Details.PERMISSION, String.join("|", permissions));
 			String permissionResourceFormat = formParams.getFirst("permission_resource_format");
-			boolean permissionResourceMatchingUri = Boolean.parseBoolean(
-					formParams.getFirst("permission_resource_matching_uri"));
-			authorizationRequest.addPermissions(permissions, permissionResourceFormat,
-					permissionResourceMatchingUri);
+			boolean permissionResourceMatchingUri = Boolean.parseBoolean(formParams.getFirst("permission_resource_matching_uri"));
+			authorizationRequest.addPermissions(permissions, permissionResourceFormat, permissionResourceMatchingUri);
 		}
 
 		Metadata metadata = new Metadata();
@@ -1158,8 +1074,7 @@ public class TokenEndpoint {
 	}
 
 	public Response oauth2DeviceCodeToToken() {
-		DeviceGrantType deviceGrantType = new DeviceGrantType(formParams, client, session, this, realm, event,
-				cors);
+		DeviceGrantType deviceGrantType = new DeviceGrantType(formParams, client, session, this, realm, event, cors);
 		return deviceGrantType.oauth2DeviceFlow();
 	}
 
@@ -1177,20 +1092,16 @@ public class TokenEndpoint {
 		}
 
 		@Override
-		protected Response buildAuthenticatedResponse(AuthenticatedClientSessionModel clientSession,
-				String redirectUri,
-				Document samlDocument, JaxrsSAML2BindingBuilder bindingBuilder)
+		protected Response buildAuthenticatedResponse(AuthenticatedClientSessionModel clientSession, String redirectUri,
+													  Document samlDocument, JaxrsSAML2BindingBuilder bindingBuilder)
 				throws ConfigurationException, ProcessingException, IOException {
 			JaxrsSAML2BindingBuilder.PostBindingBuilder builder = bindingBuilder.postBinding(samlDocument);
 
 			Element assertionElement;
 			if (samlClient.requiresEncryption()) {
-				assertionElement = DocumentUtil.getElement(builder.getDocument(),
-						new QName(JBossSAMLURIConstants.ASSERTION_NSURI.get(),
-								JBossSAMLConstants.ENCRYPTED_ASSERTION.get()));
+				assertionElement = DocumentUtil.getElement(builder.getDocument(), new QName(JBossSAMLURIConstants.ASSERTION_NSURI.get(), JBossSAMLConstants.ENCRYPTED_ASSERTION.get()));
 			} else {
-				assertionElement = DocumentUtil.getElement(builder.getDocument(),
-						new QName(JBossSAMLURIConstants.ASSERTION_NSURI.get(), JBossSAMLConstants.ASSERTION.get()));
+				assertionElement = DocumentUtil.getElement(builder.getDocument(), new QName(JBossSAMLURIConstants.ASSERTION_NSURI.get(), JBossSAMLConstants.ASSERTION.get()));
 			}
 			if (assertionElement == null) {
 				return Response.status(Status.BAD_REQUEST).build();
@@ -1200,9 +1111,7 @@ public class TokenEndpoint {
 		}
 
 		@Override
-		protected Response buildErrorResponse(boolean isPostBinding, String destination,
-				JaxrsSAML2BindingBuilder binding, Document document)
-				throws ConfigurationException, ProcessingException, IOException {
+		protected Response buildErrorResponse(boolean isPostBinding, String destination, JaxrsSAML2BindingBuilder binding, Document document) throws ConfigurationException, ProcessingException, IOException {
 			return Response.status(Status.BAD_REQUEST).build();
 		}
 	}
