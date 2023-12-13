@@ -17,7 +17,7 @@
   -->
 
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <parent>
         <artifactId>keycloak-parent</artifactId>
         <groupId>org.keycloak</groupId>
@@ -361,8 +361,7 @@
                             <scanProfiles>admin</scanProfiles>
                             <outputDirectory>${project.build.directory}/apidocs-rest/swagger/apidocs</outputDirectory>
                             <infoTitle>Keycloak Admin REST API</infoTitle>
-                            <infoDescription>This is a REST API reference for the Keycloak Admin REST API.
-                            </infoDescription>
+                            <infoDescription>This is a REST API reference for the Keycloak Admin REST API.</infoDescription>
                         </configuration>
                         <executions>
                             <execution>
@@ -390,8 +389,7 @@
                                         <modelTests>false</modelTests>
                                         <verbose>false</verbose>
                                     </globalProperties>
-                                    <inputSpec>${project.build.directory}/apidocs-rest/swagger/apidocs/openapi.yaml
-                                    </inputSpec>
+                                    <inputSpec>${project.build.directory}/apidocs-rest/swagger/apidocs/openapi.yaml</inputSpec>
                                     <output>${project.basedir}/target/docs/asciidoc/</output>
                                     <generatorName>asciidoc</generatorName>
                                     <generateApiDocumentation>true</generateApiDocumentation>
@@ -399,8 +397,7 @@
                                     <generateSupportingFiles>true</generateSupportingFiles>
                                     <groupId>${project.groupId}</groupId>
                                     <artifactId>${project.artifactId}</artifactId>
-                                    <templateDirectory>src/docs/openapi-generator-templates/keycloak-admin-api
-                                    </templateDirectory>
+                                    <templateDirectory>src/docs/openapi-generator-templates/keycloak-admin-api</templateDirectory>
                                     <configOptions>
                                         <useIntroduction>true</useIntroduction>
                                         <delegatePattern>false</delegatePattern>

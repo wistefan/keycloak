@@ -19,10 +19,10 @@
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-vertx-http</artifactId>
             <exclusions>
-                <exclusion>
-                    <groupId>io.vertx</groupId>
-                    <artifactId>vertx-uri-template</artifactId>
-                </exclusion>
+            	<exclusion>
+            		<groupId>io.vertx</groupId>
+            		<artifactId>vertx-uri-template</artifactId>
+            	</exclusion>
             </exclusions>
         </dependency>
         <dependency>
