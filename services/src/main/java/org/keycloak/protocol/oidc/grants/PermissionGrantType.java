@@ -48,9 +48,17 @@ import org.keycloak.services.managers.AppAuthManager;
  */
 public class PermissionGrantType extends OAuth2GrantTypeBase {
 
+<<<<<<< HEAD
     @Override
     public Response process(Context context) {
         setContext(context);
+=======
+    private static final String PROVIDER_ID = "uma_ticket";
+
+    @Override
+    public Response process(Context context) {
+        initialize(context);
+>>>>>>> OAuth 2.0 Grant Type SPI
 
         event.detail(Details.AUTH_METHOD, "oauth_credentials");
 
@@ -115,11 +123,17 @@ public class PermissionGrantType extends OAuth2GrantTypeBase {
             } else {
                 // Clients need to authenticate in order to obtain a RPT from the server.
                 // In order to support cases where the client is obtaining permissions on its on behalf, we issue a temporary access token
+<<<<<<< HEAD
                 OAuth2GrantType clientCredentialsGrant = session.getProvider(OAuth2GrantType.class, OAuth2Constants.CLIENT_CREDENTIALS);
                 context.setClient(client);
                 context.setClientConfig(clientConfig);
                 context.setClientAuthAttributes(clientAuthAttributes);
                 accessTokenString = AccessTokenResponse.class.cast(clientCredentialsGrant.process(context).getEntity()).getToken();
+=======
+                OAuth2GrantType clientCredentialsGrant = OAuth2GrantManager.resolve(session, OAuth2Constants.CLIENT_CREDENTIALS).get();
+                Context clientCredentialsContext = new Context(session, realm, client, clientConfig, clientConnection, clientAuthAttributes, request, response, headers, formParams, event, cors, tokenManager, dPoP);
+                accessTokenString = AccessTokenResponse.class.cast(clientCredentialsGrant.process(clientCredentialsContext).getEntity()).getToken();
+>>>>>>> OAuth 2.0 Grant Type SPI
             }
         }
 
@@ -190,8 +204,29 @@ public class PermissionGrantType extends OAuth2GrantTypeBase {
     }
 
     @Override
+<<<<<<< HEAD
+=======
+    public String getGrantType() {
+        return OAuth2Constants.UMA_GRANT_TYPE;
+    }
+
+    @Override
+>>>>>>> OAuth 2.0 Grant Type SPI
     public EventType getEventType() {
         return EventType.PERMISSION_TOKEN;
     }
 
+<<<<<<< HEAD
+=======
+    @Override
+    public OAuth2GrantType create(KeycloakSession session) {
+        return new PermissionGrantType();
+    }
+
+    @Override
+    public String getId() {
+        return PROVIDER_ID;
+    }
+
+>>>>>>> OAuth 2.0 Grant Type SPI
 }

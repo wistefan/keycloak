@@ -46,11 +46,19 @@ import org.keycloak.services.util.MtlsHoKTokenUtil;
  */
 public class RefreshTokenGrantType extends OAuth2GrantTypeBase {
 
+<<<<<<< HEAD
+=======
+    private static final String PROVIDER_ID = "refresh_token";
+>>>>>>> OAuth 2.0 Grant Type SPI
     private static final Logger logger = Logger.getLogger(RefreshTokenGrantType.class);
 
     @Override
     public Response process(Context context) {
+<<<<<<< HEAD
         setContext(context);
+=======
+        initialize(context);
+>>>>>>> OAuth 2.0 Grant Type SPI
 
         checkAndRetrieveDPoPProof(Profile.isFeatureEnabled(Profile.Feature.DPOP));
 
@@ -108,8 +116,29 @@ public class RefreshTokenGrantType extends OAuth2GrantTypeBase {
     }
 
     @Override
+<<<<<<< HEAD
+=======
+    public String getGrantType() {
+        return OAuth2Constants.REFRESH_TOKEN;
+    }
+
+    @Override
+>>>>>>> OAuth 2.0 Grant Type SPI
     public EventType getEventType() {
         return EventType.REFRESH_TOKEN;
     }
 
+<<<<<<< HEAD
+=======
+    @Override
+    public OAuth2GrantType create(KeycloakSession session) {
+        return new RefreshTokenGrantType();
+    }
+
+    @Override
+    public String getId() {
+        return PROVIDER_ID;
+    }
+
+>>>>>>> OAuth 2.0 Grant Type SPI
 }

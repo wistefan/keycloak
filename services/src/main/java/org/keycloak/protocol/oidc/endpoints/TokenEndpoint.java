@@ -61,7 +61,6 @@ import jakarta.ws.rs.core.Response.Status;
 import javax.xml.namespace.QName;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.Map;
 
 /**

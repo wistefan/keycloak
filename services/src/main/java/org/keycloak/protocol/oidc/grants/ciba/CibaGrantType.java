@@ -18,8 +18,11 @@
 
 package org.keycloak.protocol.oidc.grants.ciba;
 
+<<<<<<< HEAD
 import java.util.Map;
 
+=======
+>>>>>>> OAuth 2.0 Grant Type SPI
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriBuilder;
 
@@ -44,7 +47,10 @@ import org.keycloak.models.utils.KeycloakModelUtils;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 import org.keycloak.protocol.oidc.OIDCLoginProtocolService;
 import org.keycloak.protocol.oidc.TokenManager;
+<<<<<<< HEAD
 import org.keycloak.protocol.oidc.grants.OAuth2GrantType;
+=======
+>>>>>>> OAuth 2.0 Grant Type SPI
 import org.keycloak.protocol.oidc.grants.OAuth2GrantTypeBase;
 import org.keycloak.protocol.oidc.grants.ciba.channel.CIBAAuthenticationRequest;
 import org.keycloak.protocol.oidc.grants.ciba.clientpolicy.context.BackchannelTokenRequestContext;
@@ -61,6 +67,13 @@ import org.keycloak.services.managers.UserConsentManager;
 import org.keycloak.services.util.DefaultClientSessionContext;
 import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.sessions.RootAuthenticationSessionModel;
+<<<<<<< HEAD
+=======
+import org.keycloak.utils.ProfileHelper;
+
+import java.util.Map;
+import org.keycloak.protocol.oidc.grants.OAuth2GrantType;
+>>>>>>> OAuth 2.0 Grant Type SPI
 
 /**
  * OpenID Connect Client-Initiated Backchannel Authentication Flow
@@ -70,6 +83,7 @@ import org.keycloak.sessions.RootAuthenticationSessionModel;
  */
 public class CibaGrantType extends OAuth2GrantTypeBase {
 
+    private static final String PROVIDER_ID = "ciba";
     private static final Logger logger = Logger.getLogger(CibaGrantType.class);
 
     public static final String IS_CONSENT_REQUIRED = "is_consent_required";
@@ -110,7 +124,13 @@ public class CibaGrantType extends OAuth2GrantTypeBase {
 
     @Override
     public Response process(Context context) {
+<<<<<<< HEAD
         setContext(context);
+=======
+        initialize(context);
+
+        ProfileHelper.requireFeature(Profile.Feature.CIBA);
+>>>>>>> OAuth 2.0 Grant Type SPI
 
         if (!realm.getCibaPolicy().isOIDCCIBAGrantEnabled(client)) {
             event.error(Errors.NOT_ALLOWED);
@@ -292,8 +312,29 @@ public class CibaGrantType extends OAuth2GrantTypeBase {
     }
 
     @Override
+<<<<<<< HEAD
+=======
+    public String getGrantType() {
+        return OAuth2Constants.CIBA_GRANT_TYPE;
+    }
+
+    @Override
+>>>>>>> OAuth 2.0 Grant Type SPI
     public EventType getEventType() {
         return EventType.AUTHREQID_TO_TOKEN;
     }
 
+<<<<<<< HEAD
+=======
+    @Override
+    public OAuth2GrantType create(KeycloakSession session) {
+        return new CibaGrantType();
+    }
+
+    @Override
+    public String getId() {
+        return PROVIDER_ID;
+    }
+
+>>>>>>> OAuth 2.0 Grant Type SPI
 }

@@ -57,10 +57,18 @@ import org.keycloak.services.util.DefaultClientSessionContext;
 public class AuthorizationCodeGrantType extends OAuth2GrantTypeBase {
 
     private static final Logger logger = Logger.getLogger(AuthorizationCodeGrantType.class);
+<<<<<<< HEAD
 
     @Override
     public Response process(Context context) {
         setContext(context);
+=======
+    private static final String PROVIDER_ID = "authorization_code";
+
+    @Override
+    public Response process(Context context) {
+        initialize(context);
+>>>>>>> OAuth 2.0 Grant Type SPI
 
         checkAndRetrieveDPoPProof(Profile.isFeatureEnabled(Profile.Feature.DPOP));
 
@@ -195,6 +203,24 @@ public class AuthorizationCodeGrantType extends OAuth2GrantTypeBase {
     }
 
     @Override
+<<<<<<< HEAD
+=======
+    public OAuth2GrantType create(KeycloakSession session) {
+        return new AuthorizationCodeGrantType();
+    }
+
+    @Override
+    public String getId() {
+        return PROVIDER_ID;
+    }
+
+    @Override
+    public String getGrantType() {
+        return OAuth2Constants.AUTHORIZATION_CODE;
+    }
+
+    @Override
+>>>>>>> OAuth 2.0 Grant Type SPI
     public EventType getEventType() {
         return EventType.CODE_TO_TOKEN;
     }
