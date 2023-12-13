@@ -154,10 +154,6 @@
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>com.danubetech</groupId>
-            <artifactId>verifiable-credentials-java</artifactId>
-        </dependency>
-        <dependency>
             <groupId>org.keycloak</groupId>
             <artifactId>keycloak-crypto-default</artifactId>
         </dependency>

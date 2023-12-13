@@ -15,7 +15,7 @@ import java.util.List;
  */
 public class OIDC4VPClientRegistrationProviderFactory implements ClientRegistrationProviderFactory {
 
-	public static final String PROTOCOL_ID = "OIDC4VP";
+	public static final String PROTOCOL_ID = "oidc4vp";
 
 	@Override public ClientRegistrationProvider create(KeycloakSession session) {
 		return new OIDC4VPClientRegistrationProvider(session);

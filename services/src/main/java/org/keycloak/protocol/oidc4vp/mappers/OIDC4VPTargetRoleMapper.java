@@ -1,6 +1,5 @@
 package org.keycloak.protocol.oidc4vp.mappers;
 
-import com.danubetech.verifiablecredentials.VerifiableCredential;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
@@ -12,14 +11,10 @@ import org.keycloak.models.RoleModel;
 import org.keycloak.models.UserSessionModel;
 import org.keycloak.protocol.oidc4vp.OIDC4VPClientRegistrationProviderFactory;
 import org.keycloak.protocol.oidc4vp.model.Role;
+import org.keycloak.protocol.oidc4vp.model.VerifiableCredential;
 import org.keycloak.provider.ProviderConfigProperty;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class OIDC4VPTargetRoleMapper extends OIDC4VPMapper {
@@ -72,8 +67,8 @@ public class OIDC4VPTargetRoleMapper extends OIDC4VPMapper {
 	}
 
 	@Override
-	public void setClaimsForCredential(VerifiableCredential.Builder credentialBuilder,
-			UserSessionModel userSessionModel) {
+	public void setClaimsForCredential(VerifiableCredential verifiableCredential,
+									   UserSessionModel userSessionModel) {
 		// nothing to do for the mapper.
 	}
 

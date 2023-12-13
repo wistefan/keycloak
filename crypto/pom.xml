@@ -32,7 +32,7 @@
 
     <modules>
         <module>default</module>
-        <module>fips1402</module>
+<!--        <module>fips1402</module>-->
         <module>elytron</module>
     </modules>
 </project>

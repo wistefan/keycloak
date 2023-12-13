@@ -311,16 +311,6 @@
         <module>js</module>
         <module>quarkus</module>
     </modules>
-    <repositories>
-        <repository>
-            <id>mavenCentral</id>
-            <url>https://repo1.maven.org/maven2/</url>
-        </repository>
-        <repository>
-            <id>danubetech-maven-public</id>
-            <url>https://repo.danubetech.com/repository/maven-public/</url>
-        </repository>
-    </repositories>
     <dependencyManagement>
 
         <dependencies>
@@ -1736,11 +1726,6 @@
                 <groupId>org.jboss.spec.javax.servlet</groupId>
                 <artifactId>jboss-servlet-api_4.0_spec</artifactId>
                 <version>${jboss-servlet-api_4.0_spec}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.danubetech</groupId>
-                <artifactId>verifiable-credentials-java</artifactId>
-                <version>1.7.0</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

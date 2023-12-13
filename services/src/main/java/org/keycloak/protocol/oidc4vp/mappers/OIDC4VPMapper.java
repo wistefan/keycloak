@@ -1,6 +1,5 @@
 package org.keycloak.protocol.oidc4vp.mappers;
 
-import com.danubetech.verifiablecredentials.VerifiableCredential;
 import org.keycloak.Config;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
@@ -8,13 +7,10 @@ import org.keycloak.models.ProtocolMapperModel;
 import org.keycloak.models.UserSessionModel;
 import org.keycloak.protocol.ProtocolMapper;
 import org.keycloak.protocol.oidc4vp.OIDC4VPClientRegistrationProviderFactory;
+import org.keycloak.protocol.oidc4vp.model.VerifiableCredential;
 import org.keycloak.provider.ProviderConfigProperty;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Stream;
 
 public abstract class OIDC4VPMapper implements ProtocolMapper {
@@ -87,8 +83,8 @@ public abstract class OIDC4VPMapper implements ProtocolMapper {
 	/**
 	 * Set the claims to credential, like f.e. the context
 	 */
-	public abstract void setClaimsForCredential(VerifiableCredential.Builder credentialBuilder,
-			UserSessionModel userSessionModel);
+	public abstract void setClaimsForCredential(VerifiableCredential verifiableCredential,
+												UserSessionModel userSessionModel);
 
 	/**
 	 * Set the claims to the credential subject.

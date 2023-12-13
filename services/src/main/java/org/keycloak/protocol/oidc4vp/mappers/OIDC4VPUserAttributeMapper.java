@@ -1,11 +1,11 @@
 package org.keycloak.protocol.oidc4vp.mappers;
 
-import com.danubetech.verifiablecredentials.VerifiableCredential;
 import org.keycloak.models.ProtocolMapperModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.UserSessionModel;
 import org.keycloak.models.utils.KeycloakModelUtils;
 import org.keycloak.protocol.oidc4vp.OIDC4VPClientRegistrationProviderFactory;
+import org.keycloak.protocol.oidc4vp.model.VerifiableCredential;
 import org.keycloak.provider.ProviderConfigProperty;
 
 import java.util.ArrayList;
@@ -59,8 +59,8 @@ public class OIDC4VPUserAttributeMapper extends OIDC4VPMapper {
 		return CONFIG_PROPERTIES;
 	}
 
-	@Override public void setClaimsForCredential(VerifiableCredential.Builder credentialBuilder,
-			UserSessionModel userSessionModel) {
+	public void setClaimsForCredential(VerifiableCredential verifiableCredential,
+									   UserSessionModel userSessionModel) {
 		// nothing to do for the mapper.
 	}
 
