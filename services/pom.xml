@@ -270,7 +270,7 @@
                         <configuration>
                             <inputSpec>${project.basedir}/src/api/oidc4vci-api.yaml</inputSpec>
                             <strictSpec>true</strictSpec>
-                            <modelPackage>org.keycloak.protocol.oid4vp.model</modelPackage>
+                            <modelPackage>org.keycloak.protocol.oid4vc.model</modelPackage>
                             <generateAliasAsModel>true</generateAliasAsModel>
                             <generatorName>jaxrs-spec</generatorName>
                             <!-- the generated interfaces cannot be used, since there class level annotations clash with the spi. -->
