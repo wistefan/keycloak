@@ -8,8 +8,8 @@ import org.bouncycastle.openssl.PEMParser;
 import org.keycloak.common.util.KeyUtils;
 import org.keycloak.crypto.*;
 import org.keycloak.jose.jws.JWSBuilder;
+import org.keycloak.protocol.oid4vc.issuance.signing.jwt_vc.EdDSASignatureSignerContext;
 import org.keycloak.protocol.oid4vc.model.VerifiableCredential;
-import org.keycloak.protocol.oid4vc.signing.jwt_vc.EdDSASignatureSignerContext;
 import org.keycloak.representations.JsonWebToken;
 
 import java.io.IOException;
@@ -25,7 +25,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.keycloak.protocol.oid4vc.signing.jwt_vc.EdDSASignatureSignerContext.ED_25519;
+import static org.keycloak.protocol.oid4vc.issuance.signing.jwt_vc.EdDSASignatureSignerContext.ED_25519;
+
 
 public class JwtSigningService extends SigningService<String> {
 

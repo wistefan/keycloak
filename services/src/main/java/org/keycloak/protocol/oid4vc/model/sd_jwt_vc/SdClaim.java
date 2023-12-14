@@ -1,6 +1,7 @@
 package org.keycloak.protocol.oid4vc.model.sd_jwt_vc;
 
-import static org.keycloak.protocol.oid4vc.signing.SdJwtSigningService.generateSalt;
+
+import static org.keycloak.protocol.oid4vc.issuance.signing.SdJwtSigningService.generateSalt;
 
 public class SdClaim {
 
