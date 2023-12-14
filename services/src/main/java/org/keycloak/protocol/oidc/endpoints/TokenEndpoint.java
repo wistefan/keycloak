@@ -17,9 +17,7 @@
 
 package org.keycloak.protocol.oidc.endpoints;
 
-import org.checkerframework.checker.units.qual.A;
 import org.jboss.logging.Logger;
-import org.keycloak.common.util.Time;
 import org.keycloak.http.HttpRequest;
 import org.keycloak.http.HttpResponse;
 import org.keycloak.OAuth2Constants;
@@ -127,7 +125,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
-import static org.keycloak.protocol.oidc4vp.OIDC4VPIssuerEndpoint.GRANT_TYPE_PRE_AUTHORIZED_CODE;
+import static org.keycloak.protocol.oid4vp.OIDC4VPIssuerEndpoint.GRANT_TYPE_PRE_AUTHORIZED_CODE;
 import static org.keycloak.utils.LockObjectsForModification.lockUserSessionsForModification;
 
 /**
