@@ -1,11 +1,9 @@
-package org.keycloak.protocol.oidc4vp.signing.signatures;
+package org.keycloak.protocol.oidc4vp.signing.jwt_vc;
 
-import org.bouncycastle.jcajce.interfaces.EdDSAPrivateKey;
 import org.keycloak.crypto.KeyWrapper;
 import org.keycloak.crypto.SignatureException;
 import org.keycloak.crypto.SignatureSignerContext;
 
-import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.Signature;
 

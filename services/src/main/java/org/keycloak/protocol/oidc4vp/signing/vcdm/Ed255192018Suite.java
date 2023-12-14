@@ -1,4 +1,4 @@
-package org.keycloak.protocol.oidc4vp.signing.signatures;
+package org.keycloak.protocol.oidc4vp.signing.vcdm;
 
 import com.apicatalog.jsonld.JsonLd;
 import com.apicatalog.jsonld.JsonLdError;

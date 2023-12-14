@@ -7,10 +7,9 @@ import org.keycloak.crypto.JavaAlgorithm;
 import org.keycloak.crypto.JavaAlgorithmHashProvider;
 import org.keycloak.protocol.oidc4vp.model.CredentialSubject;
 import org.keycloak.protocol.oidc4vp.model.VerifiableCredential;
-import org.keycloak.protocol.oidc4vp.model.sdjwt.*;
+import org.keycloak.protocol.oidc4vp.model.sd_jwt_vc.*;
 import org.keycloak.representations.JsonWebToken;
 
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.time.Clock;

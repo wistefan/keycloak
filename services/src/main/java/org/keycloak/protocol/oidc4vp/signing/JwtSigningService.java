@@ -9,7 +9,7 @@ import org.keycloak.common.util.KeyUtils;
 import org.keycloak.crypto.*;
 import org.keycloak.jose.jws.JWSBuilder;
 import org.keycloak.protocol.oidc4vp.model.VerifiableCredential;
-import org.keycloak.protocol.oidc4vp.signing.signatures.EdDSASignatureSignerContext;
+import org.keycloak.protocol.oidc4vp.signing.jwt_vc.EdDSASignatureSignerContext;
 import org.keycloak.representations.JsonWebToken;
 
 import java.io.IOException;
@@ -20,13 +20,12 @@ import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.time.Clock;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.keycloak.protocol.oidc4vp.signing.signatures.EdDSASignatureSignerContext.ED_25519;
+import static org.keycloak.protocol.oidc4vp.signing.jwt_vc.EdDSASignatureSignerContext.ED_25519;
 
 public class JwtSigningService extends SigningService<String> {
 

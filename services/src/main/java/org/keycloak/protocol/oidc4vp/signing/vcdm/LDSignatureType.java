@@ -1,4 +1,4 @@
-package org.keycloak.protocol.oidc4vp.signing;
+package org.keycloak.protocol.oidc4vp.signing.vcdm;
 
 public enum LDSignatureType {
 

@@ -1,6 +1,4 @@
-package org.keycloak.protocol.oidc4vp.model.sdjwt;
-
-import java.util.Map;
+package org.keycloak.protocol.oidc4vp.model.sd_jwt_vc;
 
 public class ArrayElement {
 

@@ -1,20 +1,17 @@
 package org.keycloak.protocol.oidc4vp.signing;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.databind.util.StdDateFormat;
 import org.bouncycastle.crypto.generators.Ed25519KeyPairGenerator;
 import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
 import org.bouncycastle.crypto.params.Ed25519KeyGenerationParameters;
 import org.bouncycastle.crypto.signers.Ed25519Signer;
 import org.bouncycastle.crypto.util.PrivateKeyInfoFactory;
 import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.keycloak.common.util.Base64;
 import org.keycloak.protocol.oidc4vp.model.VerifiableCredential;
-import org.keycloak.protocol.oidc4vp.signing.signatures.Ed255192018Suite;
-import org.keycloak.protocol.oidc4vp.signing.signatures.SecuritySuite;
+import org.keycloak.protocol.oidc4vp.signing.vcdm.Ed255192018Suite;
+import org.keycloak.protocol.oidc4vp.signing.vcdm.SecuritySuite;
 
 import java.io.IOException;
 import java.io.StringWriter;

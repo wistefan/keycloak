@@ -1,4 +1,4 @@
-package org.keycloak.protocol.oidc4vp.model.sdjwt;
+package org.keycloak.protocol.oidc4vp.model.sd_jwt_vc;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 

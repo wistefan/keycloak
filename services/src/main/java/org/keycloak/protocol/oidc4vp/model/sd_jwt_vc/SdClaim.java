@@ -1,10 +1,4 @@
-package org.keycloak.protocol.oidc4vp.model.sdjwt;
-
-import org.keycloak.common.util.Base64;
-import org.keycloak.protocol.oidc4vp.signing.SigningServiceException;
-
-import java.io.IOException;
-import java.security.SecureRandom;
+package org.keycloak.protocol.oidc4vp.model.sd_jwt_vc;
 
 import static org.keycloak.protocol.oidc4vp.signing.SdJwtSigningService.generateSalt;
 

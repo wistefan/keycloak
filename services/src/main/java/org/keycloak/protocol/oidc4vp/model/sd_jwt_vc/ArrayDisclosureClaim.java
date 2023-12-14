@@ -1,6 +1,4 @@
-package org.keycloak.protocol.oidc4vp.model.sdjwt;
-
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+package org.keycloak.protocol.oidc4vp.model.sd_jwt_vc;
 
 import java.util.ArrayList;
 import java.util.List;
