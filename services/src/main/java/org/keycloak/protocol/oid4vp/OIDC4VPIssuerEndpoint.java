@@ -6,8 +6,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.constraints.NotNull;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.Response;
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import org.jboss.logging.Logger;
 import org.keycloak.TokenVerifier;
 import org.keycloak.common.VerificationException;
@@ -570,11 +568,22 @@ public class OIDC4VPIssuerEndpoint {
         }
     }
 
-    @Getter
-    @RequiredArgsConstructor
     private static class ClientRoleModel {
         private final String clientId;
         private final List<RoleModel> roleModels;
+
+        public ClientRoleModel(String clientId, List<RoleModel> roleModels) {
+            this.clientId = clientId;
+            this.roleModels = roleModels;
+        }
+
+        public String getClientId() {
+            return clientId;
+        }
+
+        public List<RoleModel> getRoleModels() {
+            return roleModels;
+        }
     }
 }
 

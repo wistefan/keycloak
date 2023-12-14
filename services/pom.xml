@@ -17,7 +17,7 @@
   -->
 
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <parent>
         <artifactId>keycloak-parent</artifactId>
         <groupId>org.keycloak</groupId>
@@ -34,22 +34,25 @@
         <maven.compiler.release>17</maven.compiler.release>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
-        <version.org.projectlombok>1.18.30</version.org.projectlombok>
         <mockito.version>1.9.5</mockito.version>
         <mockito.junit-jupiter.version>5.0.0</mockito.junit-jupiter.version>
         <junit.jupiter.version>5.9.2</junit.jupiter.version>
+        <com.apicatalog.titanium-json-ld.version>1.3.3.</com.apicatalog.titanium-json-ld.version>
+        <io.setl.rdf-urdna.version>1.1</io.setl.rdf-urdna.version>
     </properties>
 
     <dependencies>
         <dependency>
             <groupId>com.apicatalog</groupId>
             <artifactId>titanium-json-ld</artifactId>
-            <version>1.3.3</version>
+            <version>${com.apicatalog.titanium-json-ld.version}</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>io.setl</groupId>
             <artifactId>rdf-urdna</artifactId>
-            <version>1.1</version>
+            <version>${io.setl.rdf-urdna.version}</version>
+            <scope>provided</scope>
         </dependency>
 
         <dependency>
@@ -97,12 +100,6 @@
         <dependency>
             <groupId>org.twitter4j</groupId>
             <artifactId>twitter4j-core</artifactId>
-        </dependency>
-        <!-- lazy dev -->
-        <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-            <version>${version.org.projectlombok}</version>
         </dependency>
 
         <dependency>
@@ -361,7 +358,8 @@
                             <scanProfiles>admin</scanProfiles>
                             <outputDirectory>${project.build.directory}/apidocs-rest/swagger/apidocs</outputDirectory>
                             <infoTitle>Keycloak Admin REST API</infoTitle>
-                            <infoDescription>This is a REST API reference for the Keycloak Admin REST API.</infoDescription>
+                            <infoDescription>This is a REST API reference for the Keycloak Admin REST API.
+                            </infoDescription>
                         </configuration>
                         <executions>
                             <execution>
@@ -389,7 +387,8 @@
                                         <modelTests>false</modelTests>
                                         <verbose>false</verbose>
                                     </globalProperties>
-                                    <inputSpec>${project.build.directory}/apidocs-rest/swagger/apidocs/openapi.yaml</inputSpec>
+                                    <inputSpec>${project.build.directory}/apidocs-rest/swagger/apidocs/openapi.yaml
+                                    </inputSpec>
                                     <output>${project.basedir}/target/docs/asciidoc/</output>
                                     <generatorName>asciidoc</generatorName>
                                     <generateApiDocumentation>true</generateApiDocumentation>
@@ -397,7 +396,8 @@
                                     <generateSupportingFiles>true</generateSupportingFiles>
                                     <groupId>${project.groupId}</groupId>
                                     <artifactId>${project.artifactId}</artifactId>
-                                    <templateDirectory>src/docs/openapi-generator-templates/keycloak-admin-api</templateDirectory>
+                                    <templateDirectory>src/docs/openapi-generator-templates/keycloak-admin-api
+                                    </templateDirectory>
                                     <configOptions>
                                         <useIntroduction>true</useIntroduction>
                                         <delegatePattern>false</delegatePattern>
