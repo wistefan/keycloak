@@ -9,11 +9,9 @@ import org.bouncycastle.crypto.util.PrivateKeyInfoFactory;
 import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
 import org.junit.jupiter.api.Test;
 import org.keycloak.common.util.Base64;
+import org.keycloak.protocol.oid4vc.issuance.signing.vcdm.Ed255192018Suite;
+import org.keycloak.protocol.oid4vc.issuance.signing.vcdm.SecuritySuite;
 import org.keycloak.protocol.oid4vc.model.VerifiableCredential;
-import org.keycloak.protocol.oid4vc.signing.KeyLoader;
-import org.keycloak.protocol.oid4vc.signing.LDSigningService;
-import org.keycloak.protocol.oid4vc.signing.vcdm.Ed255192018Suite;
-import org.keycloak.protocol.oid4vc.signing.vcdm.SecuritySuite;
 
 import java.io.IOException;
 import java.io.StringWriter;

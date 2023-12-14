@@ -1,4 +1,4 @@
-package org.keycloak.protocol.oid4vc.signing;
+package org.keycloak.protocol.oid4vc.issuance.signing;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;

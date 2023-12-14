@@ -1,14 +1,14 @@
-package org.keycloak.protocol.oid4vc.signing;
+package org.keycloak.protocol.oid4vc.issuance.signing;
 
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.jboss.logging.Logger;
 import org.keycloak.common.util.Base64;
+import org.keycloak.protocol.oid4vc.issuance.signing.vcdm.Ed255192018Suite;
+import org.keycloak.protocol.oid4vc.issuance.signing.vcdm.RsaSignature2018Suite;
+import org.keycloak.protocol.oid4vc.issuance.signing.vcdm.SecuritySuite;
 import org.keycloak.protocol.oid4vc.model.vcdm.LdProof;
 import org.keycloak.protocol.oid4vc.model.VerifiableCredential;
-import org.keycloak.protocol.oid4vc.signing.vcdm.Ed255192018Suite;
-import org.keycloak.protocol.oid4vc.signing.vcdm.RsaSignature2018Suite;
-import org.keycloak.protocol.oid4vc.signing.vcdm.SecuritySuite;
 
 import java.io.IOException;
 import java.time.Clock;

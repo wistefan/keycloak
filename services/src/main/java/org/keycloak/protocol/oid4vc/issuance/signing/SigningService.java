@@ -1,4 +1,4 @@
-package org.keycloak.protocol.oid4vc.signing;
+package org.keycloak.protocol.oid4vc.issuance.signing;
 
 import java.time.Clock;
 import java.util.Optional;

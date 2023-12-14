@@ -1,4 +1,4 @@
-package org.keycloak.protocol.oid4vc.signing.jwt_vc;
+package org.keycloak.protocol.oid4vc.issuance.signing.jwt_vc;
 
 import org.keycloak.crypto.KeyWrapper;
 import org.keycloak.crypto.SignatureException;

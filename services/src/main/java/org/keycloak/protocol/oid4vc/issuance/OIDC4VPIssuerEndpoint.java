@@ -30,7 +30,7 @@ import org.keycloak.protocol.oid4vc.model.PreAuthorized;
 import org.keycloak.protocol.oid4vc.model.PreAuthorizedGrant;
 import org.keycloak.protocol.oid4vc.model.SupportedCredential;
 import org.keycloak.protocol.oid4vc.model.vcdm.LdProof;
-import org.keycloak.protocol.oid4vc.signing.*;
+import org.keycloak.protocol.oid4vc.issuance.signing.*;
 import org.keycloak.representations.JsonWebToken;
 import org.keycloak.services.managers.AppAuthManager;
 import org.keycloak.services.managers.AuthenticationManager;

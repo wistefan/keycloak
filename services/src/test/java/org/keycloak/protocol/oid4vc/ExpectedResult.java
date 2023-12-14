@@ -1,4 +1,4 @@
-package org.keycloak.protocol.oid4vc.issuance;
+package org.keycloak.protocol.oid4vc;
 
 import java.util.Objects;
 

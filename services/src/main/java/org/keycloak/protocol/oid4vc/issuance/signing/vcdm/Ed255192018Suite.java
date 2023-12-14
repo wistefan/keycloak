@@ -1,4 +1,4 @@
-package org.keycloak.protocol.oid4vc.signing.vcdm;
+package org.keycloak.protocol.oid4vc.issuance.signing.vcdm;
 
 import com.apicatalog.jsonld.JsonLd;
 import com.apicatalog.jsonld.JsonLdError;
@@ -23,8 +23,8 @@ import org.bouncycastle.crypto.signers.Ed25519Signer;
 import org.bouncycastle.crypto.util.PrivateKeyFactory;
 import org.bouncycastle.openssl.PEMKeyPair;
 import org.bouncycastle.openssl.PEMParser;
+import org.keycloak.protocol.oid4vc.issuance.signing.SigningServiceException;
 import org.keycloak.protocol.oid4vc.model.VerifiableCredential;
-import org.keycloak.protocol.oid4vc.signing.SigningServiceException;
 
 import java.io.IOException;
 import java.io.StringReader;

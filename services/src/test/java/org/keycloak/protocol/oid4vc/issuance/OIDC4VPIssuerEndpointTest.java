@@ -16,9 +16,9 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.keycloak.common.VerificationException;
 import org.keycloak.models.*;
+import org.keycloak.protocol.oid4vc.ExpectedResult;
 import org.keycloak.protocol.oid4vc.OIDC4VPClientRegistrationProviderFactory;
 import org.keycloak.protocol.oid4vc.issuance.mappers.*;
-import org.keycloak.protocol.oid4vc.mappers.*;
 import org.keycloak.protocol.oid4vc.model.*;
 import org.keycloak.protocol.oid4vc.model.ErrorResponse;
 import org.keycloak.protocol.oid4vc.model.Format;
@@ -689,7 +689,7 @@ public class OIDC4VPIssuerEndpointTest {
         );
     }
 
-    protected static SupportedCredential getCredential(String type, Format format) {
+    public static SupportedCredential getCredential(String type, Format format) {
         var cred = new SupportedCredential();
         cred.setTypes(List.of(type));
         cred.setFormat(format);

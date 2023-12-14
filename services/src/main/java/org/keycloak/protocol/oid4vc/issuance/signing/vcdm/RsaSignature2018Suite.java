@@ -1,4 +1,4 @@
-package org.keycloak.protocol.oid4vc.signing.vcdm;
+package org.keycloak.protocol.oid4vc.issuance.signing.vcdm;
 
 import org.keycloak.protocol.oid4vc.model.VerifiableCredential;
 
