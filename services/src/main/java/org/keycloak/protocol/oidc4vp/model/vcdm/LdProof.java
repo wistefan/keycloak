@@ -1,4 +1,4 @@
-package org.keycloak.protocol.oidc4vp.model;
+package org.keycloak.protocol.oidc4vp.model.vcdm;
 
 import com.fasterxml.jackson.annotation.JsonAnyGetter;
 import com.fasterxml.jackson.annotation.JsonAnySetter;

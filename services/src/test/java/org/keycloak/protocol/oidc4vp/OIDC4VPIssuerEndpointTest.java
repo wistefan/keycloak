@@ -67,9 +67,10 @@ public class OIDC4VPIssuerEndpointTest {
         this.keycloakSession = mock(KeycloakSession.class);
         this.bearerTokenAuthenticator = mock(AppAuthManager.BearerTokenAuthenticator.class);
         this.testEndpoint = new OIDC4VPIssuerEndpoint(keycloakSession, ISSUER_DID, url.getPath(),
-                Optional.of("Ed25519"),
+                Optional.of("RS256"),
                 Optional.of("Ed25519Signature2018"),
-                bearerTokenAuthenticator, new ObjectMapper(), fixedClock);
+                Optional.of("RS256"),
+                bearerTokenAuthenticator, new ObjectMapper(), fixedClock, 3, Optional.empty());
     }
 
     @Test
@@ -159,7 +160,7 @@ public class OIDC4VPIssuerEndpointTest {
                 VerifiableCredential verifiableCredential = OBJECT_MAPPER.convertValue(credential, VerifiableCredential.class);
                 verifyLDCredential(expectedResult, verifiableCredential);
             }
-            case JWT_VC_JSON_LD, JWT_VC, JWT_VC_JSON -> verifyJWTCredential(expectedResult, (String) credential);
+            case JWT_VC -> verifyJWTCredential(expectedResult, (String) credential);
         }
     }
 

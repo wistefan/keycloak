@@ -3,7 +3,6 @@ package org.keycloak.protocol.oidc4vp.signing;
 
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openssl.PEMKeyPair;
 import org.bouncycastle.openssl.PEMParser;
 import org.keycloak.common.util.KeyUtils;
@@ -29,13 +28,13 @@ import java.util.UUID;
 
 import static org.keycloak.protocol.oidc4vp.signing.signatures.EdDSASignatureSignerContext.ED_25519;
 
-public class JWTSigningService extends SigningService<String> {
+public class JwtSigningService extends SigningService<String> {
 
     private static final String ID_TEMPLATE = "urn:uuid:%s";
 
     private SignatureSignerContext signatureSignerContext;
 
-    public JWTSigningService(KeyLoader keyLoader, Optional<String> optionalKeyId, Clock clock, String algorithmType) {
+    public JwtSigningService(KeyLoader keyLoader, Optional<String> optionalKeyId, Clock clock, String algorithmType) {
         super(keyLoader, optionalKeyId, clock, algorithmType);
 
         var signingKey = getKeyWrapper(algorithmType);
@@ -53,7 +52,7 @@ public class JWTSigningService extends SigningService<String> {
     public String signCredential(VerifiableCredential verifiableCredential) {
 
         JsonWebToken jsonWebToken = new JsonWebToken();
-        jsonWebToken.exp(clock.instant().plus(1, ChronoUnit.DAYS).getEpochSecond());
+        Optional.ofNullable(verifiableCredential.getExpirationDate()).ifPresent(d -> jsonWebToken.exp(d.getTime()));
         jsonWebToken.issuer(verifiableCredential.getIssuer().toString());
         jsonWebToken.nbf(clock.instant().getEpochSecond());
         jsonWebToken.iat(clock.instant().getEpochSecond());
@@ -67,10 +66,13 @@ public class JWTSigningService extends SigningService<String> {
         }
         jsonWebToken.subject(verifiableCredential.getCredentialSubject().getId());
         jsonWebToken.setOtherClaims("vc", verifiableCredential);
+        return signToken(jsonWebToken, type);
+    }
 
+    protected String signToken(JsonWebToken jsonWebToken, String type) {
         JWSBuilder jwsBuilder = new JWSBuilder();
         optionalKeyId.ifPresent(jwsBuilder::kid);
-        jwsBuilder.type("JWT");
+        jwsBuilder.type(type);
         return jwsBuilder.jsonContent(jsonWebToken).sign(signatureSignerContext);
     }
 

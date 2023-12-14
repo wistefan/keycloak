@@ -4,7 +4,7 @@ package org.keycloak.protocol.oidc4vp.signing;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.jboss.logging.Logger;
 import org.keycloak.common.util.Base64;
-import org.keycloak.protocol.oidc4vp.model.LdProof;
+import org.keycloak.protocol.oidc4vp.model.vcdm.LdProof;
 import org.keycloak.protocol.oidc4vp.model.VerifiableCredential;
 import org.keycloak.protocol.oidc4vp.signing.signatures.Ed255192018Suite;
 import org.keycloak.protocol.oidc4vp.signing.signatures.RsaSignature2018Suite;

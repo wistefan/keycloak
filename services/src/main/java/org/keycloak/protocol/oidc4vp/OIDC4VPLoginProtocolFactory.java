@@ -90,15 +90,18 @@ public class OIDC4VPLoginProtocolFactory implements LoginProtocolFactory {
                 .orElseThrow(() -> new VCIssuerException("No keyPath configured."));
         Optional<String> lpdType = Optional.ofNullable(keycloakSession.getContext().getRealm().getAttribute("ldpType"));
         Optional<String> jwtType = Optional.ofNullable(keycloakSession.getContext().getRealm().getAttribute("jwtType"));
+        Optional<String> sdJwtType = Optional.ofNullable(keycloakSession.getContext().getRealm().getAttribute("sdJwtType"));
 
+        Integer decoys = Optional.ofNullable(keycloakSession.getContext().getRealm().getAttribute("decoys")).map(Integer::valueOf).orElse(0);
+        Optional<String> keyId = Optional.ofNullable(keycloakSession.getContext().getRealm().getAttribute("keyId"));
         return new OIDC4VPIssuerEndpoint(
                 keycloakSession,
                 issuerDid, keyPath,
-                jwtType, lpdType,
+                jwtType, sdJwtType, lpdType,
                 new AppAuthManager.BearerTokenAuthenticator(
                         keycloakSession),
-                OBJECT_MAPPER,
-                clock
+                OBJECT_MAPPER, clock,
+                decoys, keyId
         );
     }
 

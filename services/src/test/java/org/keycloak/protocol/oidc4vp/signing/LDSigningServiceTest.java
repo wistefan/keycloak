@@ -27,15 +27,9 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class LDSigningServiceTest extends SigningServiceTest {
-    private ObjectMapper objectMapper;
+    private ObjectMapper objectMapper = new ObjectMapper();
 
-    @BeforeAll
-    public static void setup() {
 
-        ObjectMapper objectMapper = new ObjectMapper();
-        objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-        objectMapper.setDateFormat(new StdDateFormat().withColonInTimeZone(true));
-    }
 
     @Test
     public void testEd25519Signature() throws IOException {

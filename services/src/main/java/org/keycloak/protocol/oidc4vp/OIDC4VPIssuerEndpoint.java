@@ -28,10 +28,8 @@ import org.keycloak.protocol.oidc4vp.model.Format;
 import org.keycloak.protocol.oidc4vp.model.PreAuthorized;
 import org.keycloak.protocol.oidc4vp.model.PreAuthorizedGrant;
 import org.keycloak.protocol.oidc4vp.model.SupportedCredential;
-import org.keycloak.protocol.oidc4vp.signing.FileBasedKeyLoader;
-import org.keycloak.protocol.oidc4vp.signing.JWTSigningService;
-import org.keycloak.protocol.oidc4vp.signing.LDSigningService;
-import org.keycloak.protocol.oidc4vp.signing.SigningServiceException;
+import org.keycloak.protocol.oidc4vp.model.vcdm.LdProof;
+import org.keycloak.protocol.oidc4vp.signing.*;
 import org.keycloak.representations.JsonWebToken;
 import org.keycloak.services.managers.AppAuthManager;
 import org.keycloak.services.managers.AuthenticationManager;
@@ -66,16 +64,19 @@ public class OIDC4VPIssuerEndpoint {
 
     private final boolean ldSigningEnabled;
     private final boolean jwtSigningEnabled;
+    private final boolean sdJwtSigningEnabled;
     private LDSigningService ldSigningService;
-    private JWTSigningService jwtSigningService;
+    private JwtSigningService jwtSigningService;
+    private SdJwtSigningService sdJwtSigningService;
 
     public OIDC4VPIssuerEndpoint(KeycloakSession session,
                                  String issuerDid,
                                  String keyPath,
                                  Optional<String> jwtType,
                                  Optional<String> ldpType,
+                                 Optional<String> sdJwtType,
                                  AppAuthManager.BearerTokenAuthenticator authenticator,
-                                 ObjectMapper objectMapper, Clock clock) {
+                                 ObjectMapper objectMapper, Clock clock, Integer decoys, Optional<String> keyId) {
         this.session = session;
         this.bearerTokenAuthenticator = authenticator;
         this.objectMapper = objectMapper;
@@ -84,7 +85,11 @@ public class OIDC4VPIssuerEndpoint {
         var tempJwtSigningEnabled = false;
         if (jwtType.isPresent()) {
             try {
-                this.jwtSigningService = new JWTSigningService(new FileBasedKeyLoader(keyPath), Optional.empty(), clock, jwtType.get());
+                this.jwtSigningService = new JwtSigningService(
+                        new FileBasedKeyLoader(keyPath),
+                        keyId,
+                        clock,
+                        jwtType.get());
                 tempJwtSigningEnabled = true;
             } catch (SigningServiceException e) {
                 LOGGER.warn("Was not able to initialize JWT SigningService, jwt credentials are not supported.", e);
@@ -96,7 +101,12 @@ public class OIDC4VPIssuerEndpoint {
         var tempLdSigningEnabled = false;
         if (ldpType.isPresent()) {
             try {
-                this.ldSigningService = new LDSigningService(new FileBasedKeyLoader(keyPath), Optional.empty(), clock, ldpType.get(), objectMapper);
+                this.ldSigningService = new LDSigningService(
+                        new FileBasedKeyLoader(keyPath),
+                        keyId,
+                        clock,
+                        ldpType.get(),
+                        objectMapper);
                 tempLdSigningEnabled = true;
             } catch (SigningServiceException e) {
                 LOGGER.warn("Was not able to initialize LD SigningService, ld credentials are not supported.", e);
@@ -105,6 +115,25 @@ public class OIDC4VPIssuerEndpoint {
             }
         }
         this.ldSigningEnabled = tempLdSigningEnabled;
+
+        var tempSdJWTSigningEnabled = false;
+        if (ldpType.isPresent()) {
+            try {
+                this.sdJwtSigningService = new SdJwtSigningService(
+                        new FileBasedKeyLoader(keyPath),
+                        keyId,
+                        clock,
+                        sdJwtType.get(),
+                        objectMapper,
+                        decoys);
+                tempSdJWTSigningEnabled = true;
+            } catch (SigningServiceException e) {
+                LOGGER.warn("Was not able to initialize SD-JWT SigningService, sd-jwt credentials are not supported.", e);
+                throw new IllegalArgumentException("No valid sd-jwt signing configured.", e);
+
+            }
+        }
+        this.sdJwtSigningEnabled = tempSdJWTSigningEnabled;
     }
 
     /**
@@ -264,10 +293,7 @@ public class OIDC4VPIssuerEndpoint {
 //		Optional.ofNullable(credentialRequestVO.getProof()).ifPresent(this::verifyProof);
 
         Format requestedFormat = credentialRequestVO.getFormat();
-        // workaround to support implementations not differentiating json & json-ld
-        if (requestedFormat == JWT_VC) {
-            requestedFormat = JWT_VC_JSON;
-        }
+
         // TODO: check if there can be more
         String vcType = types.get(0);
 
@@ -277,8 +303,7 @@ public class OIDC4VPIssuerEndpoint {
 
         Object theCredential = getCredential(vcType, credentialRequestVO.getFormat());
         switch (requestedFormat) {
-            case LDP_VC -> responseVO.setCredential(theCredential);
-            case JWT_VC_JSON -> responseVO.setCredential(theCredential);
+            case LDP_VC, JWT_VC, SD_JWT_VC -> responseVO.setCredential(theCredential);
             default -> throw new BadRequestException(
                     getErrorResponse(ErrorResponse.ErrorEnum.UNSUPPORTED_CREDENTIAL_TYPE));
         }
@@ -324,9 +349,16 @@ public class OIDC4VPIssuerEndpoint {
                 throw new IllegalArgumentException(
                         String.format("Requested format %s is not supported.", format));
             }
-            case JWT_VC, JWT_VC_JSON_LD, JWT_VC_JSON -> {
+            case JWT_VC -> {
                 if (jwtSigningEnabled) {
                     yield jwtSigningService.signCredential(credentialToSign);
+                }
+                throw new IllegalArgumentException(
+                        String.format("Requested format %s is not supported.", format));
+            }
+            case SD_JWT_VC -> {
+                if (sdJwtSigningEnabled) {
+                    yield sdJwtSigningService.signCredential(credentialToSign);
                 }
                 throw new IllegalArgumentException(
                         String.format("Requested format %s is not supported.", format));
@@ -384,8 +416,8 @@ public class OIDC4VPIssuerEndpoint {
 
         List<String> formatStrings = switch (format) {
             case LDP_VC -> List.of(LDP_VC.toString());
-            case JWT_VC, JWT_VC_JSON -> List.of(JWT_VC.toString(), JWT_VC_JSON.toString());
-            case JWT_VC_JSON_LD -> List.of(JWT_VC.toString(), JWT_VC_JSON_LD.toString());
+            case JWT_VC -> List.of(JWT_VC.toString());
+            case SD_JWT_VC -> List.of(SD_JWT_VC.toString());
 
         };
 

@@ -1,7 +1,7 @@
 package org.keycloak.protocol.oidc4vp.model;
 
 import com.fasterxml.jackson.annotation.*;
-import com.fasterxml.jackson.databind.DatabindException;
+import org.keycloak.protocol.oidc4vp.model.vcdm.LdProof;
 
 import java.net.URI;
 import java.util.Date;

@@ -246,11 +246,10 @@ components:
     Format:
       type: string
       enum:
-        - "jwt_vc_json"
-        - "jwt_vc_json-ld"
         - "ldp_vc"
         - "jwt_vc"
-      example: "jwt_vc_json-ld"
+        - "sd-jwt_vc"
+      example: "sd-jwt_vc"
     CredentialRequest:
       type: object
       properties:

@@ -7,8 +7,6 @@ import java.util.Optional;
 
 public abstract class SigningService<T> implements VCSigningService<T> {
 
-    private static final Logger LOGGER = Logger.getLogger(SigningService.class);
-
     protected final KeyLoader keyLoader;
     protected final Optional<String> optionalKeyId;
     protected final Clock clock;

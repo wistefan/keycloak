@@ -1,9 +1,15 @@
 package org.keycloak.protocol.oidc4vp.signing;
 
+import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
 import org.keycloak.protocol.oidc4vp.model.CredentialSubject;
 import org.keycloak.protocol.oidc4vp.model.VerifiableCredential;
 
+import java.io.IOException;
+import java.io.StringWriter;
 import java.net.URI;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.Date;
 import java.util.List;
@@ -18,6 +24,7 @@ public abstract class SigningServiceTest {
         CredentialSubject credentialSubject = new CredentialSubject();
         credentialSubject.setClaims("id", String.format("uri:uuid:%s", UUID.randomUUID()));
         credentialSubject.setClaims("test", "test");
+        credentialSubject.setClaims("arrayClaim", List.of("a", "b", "c"));
         VerifiableCredential testCredential = new VerifiableCredential();
         testCredential.setContext(List.of(CONTEXT_URL));
         testCredential.setType(List.of("VerifiableCredential"));
@@ -26,5 +33,40 @@ public abstract class SigningServiceTest {
         testCredential.setIssuanceDate(Date.from(Instant.ofEpochSecond(1000)));
         testCredential.setCredentialSubject(credentialSubject);
         return testCredential;
+    }
+
+    class RSAKeyLoader implements KeyLoader {
+
+        private KeyPair keyPair;
+
+        public KeyPair getKeyPair() {
+            return keyPair;
+        }
+
+        public RSAKeyLoader() {
+            try {
+                KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
+                kpg.initialize(2048);
+                keyPair = kpg.generateKeyPair();
+            } catch (NoSuchAlgorithmException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        @Override
+        public String loadKey() {
+
+            StringWriter stringWriter = new StringWriter();
+            JcaPEMWriter pemWriter = new JcaPEMWriter(stringWriter);
+            try {
+                pemWriter.writeObject(keyPair);
+                pemWriter.flush();
+                pemWriter.close();
+                return stringWriter.toString();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+
+        }
     }
 }
