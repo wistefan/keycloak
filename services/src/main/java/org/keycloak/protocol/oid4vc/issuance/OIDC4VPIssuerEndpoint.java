@@ -428,6 +428,9 @@ public class OIDC4VPIssuerEndpoint {
         if (vc.getId() == null) {
             vc.setId(URI.create(String.format("uri:uuid:%s", UUID.randomUUID())));
         }
+        if (vc.getCredentialSubject().getId() == null) {
+            vc.getCredentialSubject().setId(String.format("uri:uuid:%s", UUID.randomUUID()));
+        }
         return vc;
     }
 

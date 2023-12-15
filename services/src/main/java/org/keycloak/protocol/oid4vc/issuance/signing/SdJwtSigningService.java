@@ -72,13 +72,14 @@ public class SdJwtSigningService extends JwtSigningService {
 
         JsonWebToken jsonWebToken = new JsonWebToken();
         Optional.ofNullable(verifiableCredential.getExpirationDate()).ifPresent(d -> jsonWebToken.exp(d.getTime()));
+        Optional.ofNullable(verifiableCredential.getCredentialSubject().getId()).ifPresent(jsonWebToken::setSubject);
         jsonWebToken.issuer(verifiableCredential.getIssuer().toString());
         jsonWebToken.nbf(clock.instant().getEpochSecond());
         jsonWebToken.iat(clock.instant().getEpochSecond());
         if (verifiableCredential.getType() == null || verifiableCredential.getType().size() != 1) {
             throw new SigningServiceException("SD-JWT only supports single type credentials.");
         }
-        jsonWebToken.setOtherClaims("type", verifiableCredential.getType().get(0));
+        jsonWebToken.setOtherClaims("vct", verifiableCredential.getType().get(0));
         jsonWebToken.setOtherClaims("_sd_alg", JavaAlgorithm.SHA256.toLowerCase());
         jsonWebToken.setOtherClaims("_sd", digestList);
         arrayDisclosureClaims.forEach(adc -> {
