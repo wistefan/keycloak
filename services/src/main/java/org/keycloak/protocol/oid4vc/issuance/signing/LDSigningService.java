@@ -13,15 +13,16 @@ import org.keycloak.protocol.oid4vc.model.VerifiableCredential;
 import java.io.IOException;
 import java.time.Clock;
 import java.util.Date;
-import java.util.Optional;
 
 public class LDSigningService extends SigningService<VerifiableCredential> {
+
+    public static final String PROVIDER_ID = "ldp-signing";
     private static final Logger LOGGER = Logger.getLogger(LDSigningService.class);
 
     private SecuritySuite securitySuite;
     private ObjectMapper objectMapper;
 
-    public LDSigningService(KeyLoader keyLoader, Optional<String> keyId,
+    public LDSigningService(KeyLoader keyLoader, String keyId,
                             Clock clock, String ldpType, ObjectMapper objectMapper) {
         super(keyLoader, keyId, clock, ldpType);
         this.objectMapper = objectMapper;
@@ -49,7 +50,7 @@ public class LDSigningService extends SigningService<VerifiableCredential> {
         ldProof.setProofPurpose("assertionMethod");
         ldProof.setType(securitySuite.getProofType());
         ldProof.setCreated(Date.from(clock.instant()));
-        optionalKeyId.ifPresent(ldProof::setVerificationMethod);
+        ldProof.setVerificationMethod(keyId);
 
         try {
             var proofValue = Base64.encodeBytes(signature, Base64.URL_SAFE);

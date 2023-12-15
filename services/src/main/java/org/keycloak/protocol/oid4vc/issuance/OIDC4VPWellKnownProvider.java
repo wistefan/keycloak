@@ -49,15 +49,5 @@ public class OIDC4VPWellKnownProvider extends OIDC4VPAbstractWellKnownProvider {
         return configAsMap;
     }
 
-    // filter the client models for supported verifable credentials
-    private List<SupportedCredential> getCredentialsFromModels(List<ClientModel> clientModels) {
-        return List.copyOf(clientModels.stream()
-                .map(ClientModel::getAttributes)
-                .filter(Objects::nonNull)
-                .flatMap(attrs -> attrs.entrySet().stream())
-                .filter(attr -> attr.getKey().startsWith(VC_TYPES_PREFIX))
-                .flatMap(entry -> mapAttributeEntryToSc(entry).stream())
-                .collect(Collectors.toSet()));
-    }
 
 }

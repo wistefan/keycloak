@@ -27,13 +27,12 @@ class LDSigningServiceTest extends SigningServiceTest {
     private ObjectMapper objectMapper = new ObjectMapper();
 
 
-
     @Test
     public void testEd25519Signature() throws IOException {
         Ed25519TestKeyLoader testKeyLoader = new Ed25519TestKeyLoader();
         LDSigningService ldSigningService = new LDSigningService(
                 testKeyLoader,
-                Optional.of("my-key-id"),
+                "my-key-id",
                 Clock.fixed(Instant.ofEpochSecond(1000), ZoneId.of("UTC")),
                 Ed255192018Suite.PROOF_TYPE,
                 objectMapper);

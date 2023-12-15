@@ -1,5 +1,6 @@
 package org.keycloak.protocol.oid4vc;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.jboss.logging.Logger;
 import org.keycloak.Config;
@@ -18,6 +19,8 @@ import org.keycloak.protocol.oid4vc.issuance.VCIssuerException;
 import org.keycloak.protocol.oid4vc.issuance.mappers.OIDC4VPSubjectIdMapper;
 import org.keycloak.protocol.oid4vc.issuance.mappers.OIDC4VPTargetRoleMapper;
 import org.keycloak.protocol.oid4vc.issuance.mappers.OIDC4VPUserAttributeMapper;
+import org.keycloak.protocol.oid4vc.issuance.signing.*;
+import org.keycloak.protocol.oid4vc.model.Format;
 import org.keycloak.representations.idm.ClientRepresentation;
 import org.keycloak.services.managers.AppAuthManager;
 
@@ -51,7 +54,11 @@ public class OIDC4VPLoginProtocolFactory implements LoginProtocolFactory {
 
     @Override
     public void init(Config.Scope config) {
-        LOGGER.infof("Initiate the protocol factory. Config is %s", config);
+        try {
+            LOGGER.infof("Initiate the protocol factory. Config is %s", OBJECT_MAPPER.writeValueAsString(config));
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
         builtins.put(CLIENT_ROLES_MAPPER,
                 OIDC4VPTargetRoleMapper.create("id", "client roles"));
         builtins.put(SUBJECT_ID_MAPPER,
@@ -86,25 +93,104 @@ public class OIDC4VPLoginProtocolFactory implements LoginProtocolFactory {
 
         LOGGER.info("Create vc-issuer protocol endpoint");
 
+        Map<Format, VCSigningService> signingServices = new HashMap<>();
+
+        // handle ldp-proofs
+        boolean vcmdEnabled = Optional.ofNullable(keycloakSession.getContext().getRealm().getAttribute("vcdmEnabled")).map(Boolean::valueOf).orElse(false);
+        Optional<String> ldpProofType = Optional.ofNullable(keycloakSession.getContext().getRealm().getAttribute("ldpProofType"));
+        Optional<String> vcmdKeyPath = Optional.ofNullable(keycloakSession.getContext().getRealm().getAttribute("vcdmKeyPath"));
+        Optional<String> vcmdKeyId = Optional.ofNullable(keycloakSession.getContext().getRealm().getAttribute("vcmdKeyId"));
+
+        if (vcmdEnabled) {
+            if (ldpProofType.isEmpty() || vcmdKeyPath.isEmpty() || vcmdKeyId.isEmpty()) {
+                throw new IllegalArgumentException(
+                        String.format("VCDM credentials are not properly configured. ldpProofType: %s, vcdmKeyPath: %s, vcmdKeyId: %s",
+                                ldpProofType,
+                                vcmdKeyPath,
+                                vcmdKeyId));
+            }
+            try {
+                signingServices.put(Format.LDP_VC, new LDSigningService(
+                        new FileBasedKeyLoader(vcmdKeyPath.get()),
+                        vcmdKeyId.get(),
+                        clock,
+                        ldpProofType.get(),
+                        OBJECT_MAPPER));
+            } catch (SigningServiceException e) {
+                LOGGER.warn("Was not able to initialize LD SigningService, ld credentials are not supported.", e);
+                throw new IllegalArgumentException("No valid ldp_vc signing configured.", e);
+
+            }
+        }
+        // handle jwt-vcs
+        boolean jwtVcEnabled = Optional.ofNullable(keycloakSession.getContext().getRealm().getAttribute("jwtVcEnabled")).map(Boolean::valueOf).orElse(false);
+        Optional<String> jwtVcSignatureType = Optional.ofNullable(keycloakSession.getContext().getRealm().getAttribute("jwtVcSignatureType"));
+        Optional<String> jwtVcKeyPath = Optional.ofNullable(keycloakSession.getContext().getRealm().getAttribute("jwtVcKeyPath"));
+        Optional<String> jwtVcKeyId = Optional.ofNullable(keycloakSession.getContext().getRealm().getAttribute("jwtVcKeyId"));
+
+        if (jwtVcEnabled) {
+            if (jwtVcSignatureType.isEmpty() || jwtVcKeyPath.isEmpty() || jwtVcKeyId.isEmpty()) {
+                throw new IllegalArgumentException(
+                        String.format("VCDM credentials are not properly configured. jwtVcSignatureType: %s, jwtVcKeyPath: %s, jwtVcKeyId: %s",
+                                jwtVcSignatureType,
+                                jwtVcKeyPath,
+                                jwtVcKeyId));
+            }
+            try {
+                signingServices.put(Format.JWT_VC, new JwtSigningService(
+                        new FileBasedKeyLoader(jwtVcKeyPath.get()),
+                        jwtVcKeyId.get(),
+                        clock,
+                        jwtVcSignatureType.get()));
+            } catch (SigningServiceException e) {
+                LOGGER.warn("Was not able to initialize JWT-VC SigningService, jwt-vc credentials are not supported.", e);
+                throw new IllegalArgumentException("No valid jwt-vc signing configured.", e);
+
+            }
+        }
+
+        // handle jwt-vcs
+        boolean sdJwtVcEnabled = Optional.ofNullable(keycloakSession.getContext().getRealm().getAttribute("sdJwtVcEnabled")).map(Boolean::valueOf).orElse(false);
+        Optional<String> sdJwtVcSignatureType = Optional.ofNullable(keycloakSession.getContext().getRealm().getAttribute("sdJwtVcSignatureType"));
+        Optional<String> sdJwtVcKeyPath = Optional.ofNullable(keycloakSession.getContext().getRealm().getAttribute("sdJwtVcKeyPath"));
+        Optional<String> sdJwtVcKeyId = Optional.ofNullable(keycloakSession.getContext().getRealm().getAttribute("sdJwtVcKeyId"));
+        int sdJwtDecoys = Optional.ofNullable(keycloakSession.getContext().getRealm().getAttribute("sdJwtDecoys")).map(Integer::valueOf).orElse(0);
+
+
+        if (sdJwtVcEnabled) {
+            if (sdJwtVcSignatureType.isEmpty() || sdJwtVcKeyPath.isEmpty() || sdJwtVcKeyId.isEmpty()) {
+                throw new IllegalArgumentException(
+                        String.format("SD-JWT credentials are not properly configured. sdJwtVcSignatureType: %s, sdJwtVcKeyPath: %s, sdJwtVcKeyId: %s",
+                                sdJwtVcSignatureType,
+                                sdJwtVcKeyPath,
+                                sdJwtVcKeyId));
+            }
+            try {
+                signingServices.put(Format.SD_JWT_VC, new SdJwtSigningService(
+                        new FileBasedKeyLoader(sdJwtVcKeyPath.get()),
+                        sdJwtVcKeyId.get(),
+                        clock,
+                        sdJwtVcSignatureType.get(),
+                        OBJECT_MAPPER,
+                        sdJwtDecoys));
+            } catch (SigningServiceException e) {
+                LOGGER.warn("Was not able to initialize SD-JWT-VC SigningService, sd-jwt-vc credentials are not supported.", e);
+                throw new IllegalArgumentException("No valid sd-jwt-vc signing configured.", e);
+
+            }
+        }
+
         String issuerDid = Optional.ofNullable(keycloakSession.getContext().getRealm().getAttribute("issuerDid"))
                 .orElseThrow(() -> new VCIssuerException("No issuerDid  configured."));
-        String keyPath = Optional.ofNullable(keycloakSession.getContext().getRealm().getAttribute("keyPath"))
-                .orElseThrow(() -> new VCIssuerException("No keyPath configured."));
-        Optional<String> lpdType = Optional.ofNullable(keycloakSession.getContext().getRealm().getAttribute("ldpType"));
-        Optional<String> jwtType = Optional.ofNullable(keycloakSession.getContext().getRealm().getAttribute("jwtType"));
-        Optional<String> sdJwtType = Optional.ofNullable(keycloakSession.getContext().getRealm().getAttribute("sdJwtType"));
 
-        Integer decoys = Optional.ofNullable(keycloakSession.getContext().getRealm().getAttribute("decoys")).map(Integer::valueOf).orElse(0);
-        Optional<String> keyId = Optional.ofNullable(keycloakSession.getContext().getRealm().getAttribute("keyId"));
+
         return new OIDC4VPIssuerEndpoint(
                 keycloakSession,
-                issuerDid, keyPath,
-                jwtType, sdJwtType, lpdType,
+                issuerDid,
+                signingServices,
                 new AppAuthManager.BearerTokenAuthenticator(
                         keycloakSession),
-                OBJECT_MAPPER, clock,
-                decoys, keyId
-        );
+                OBJECT_MAPPER, clock);
     }
 
     @Override

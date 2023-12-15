@@ -19,6 +19,10 @@ import org.keycloak.models.*;
 import org.keycloak.protocol.oid4vc.ExpectedResult;
 import org.keycloak.protocol.oid4vc.OIDC4VPClientRegistrationProviderFactory;
 import org.keycloak.protocol.oid4vc.issuance.mappers.*;
+import org.keycloak.protocol.oid4vc.issuance.signing.FileBasedKeyLoader;
+import org.keycloak.protocol.oid4vc.issuance.signing.JwtSigningService;
+import org.keycloak.protocol.oid4vc.issuance.signing.LDSigningService;
+import org.keycloak.protocol.oid4vc.issuance.signing.SdJwtSigningService;
 import org.keycloak.protocol.oid4vc.model.*;
 import org.keycloak.protocol.oid4vc.model.ErrorResponse;
 import org.keycloak.protocol.oid4vc.model.Format;
@@ -60,16 +64,22 @@ public class OIDC4VPIssuerEndpointTest {
 
     @BeforeEach
     public void setUp() throws NoSuchFieldException {
-        URL url = getClass().getClassLoader().getResource("eckey.tls");
+        URL ecKeyUrl = getClass().getClassLoader().getResource("eckey.tls");
+        URL rsaKeyUrl = getClass().getClassLoader().getResource("key.tls");
 
         Security.addProvider(new BouncyCastleProvider());
+
+        var ldpSigningService = new LDSigningService(new FileBasedKeyLoader(ecKeyUrl.getPath()), "my-key-id", fixedClock, "Ed25519Signature2018", OBJECT_MAPPER);
+        var jwtSigningService = new JwtSigningService(new FileBasedKeyLoader(rsaKeyUrl.getPath()), "my-key-id", fixedClock, "RS256");
+        var sdJwtSigningService = new SdJwtSigningService(new FileBasedKeyLoader(rsaKeyUrl.getPath()), "my-key-id", fixedClock, "RS256", OBJECT_MAPPER, 3);
+
         this.keycloakSession = mock(KeycloakSession.class);
         this.bearerTokenAuthenticator = mock(AppAuthManager.BearerTokenAuthenticator.class);
-        this.testEndpoint = new OIDC4VPIssuerEndpoint(keycloakSession, ISSUER_DID, url.getPath(),
-                Optional.of("Ed25519"),
-                Optional.of("Ed25519Signature2018"),
-                Optional.of("Ed25519"),
-                bearerTokenAuthenticator, new ObjectMapper(), fixedClock, 3, Optional.empty());
+        this.testEndpoint = new OIDC4VPIssuerEndpoint(
+                keycloakSession,
+                ISSUER_DID,
+                Map.of(Format.LDP_VC, ldpSigningService, Format.JWT_VC, jwtSigningService, Format.SD_JWT_VC, sdJwtSigningService),
+                bearerTokenAuthenticator, OBJECT_MAPPER, fixedClock);
     }
 
     @Test

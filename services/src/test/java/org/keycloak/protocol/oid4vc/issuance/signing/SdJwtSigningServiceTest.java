@@ -24,7 +24,7 @@ class SdJwtSigningServiceTest extends SigningServiceTest {
         RSAKeyLoader keyLoader = new RSAKeyLoader();
         SdJwtSigningService sdJwtSigningService = new SdJwtSigningService(
                 keyLoader,
-                Optional.of("my-key-id"),
+                "my-key-id",
                 Clock.fixed(Instant.ofEpochSecond(1000), ZoneId.of("UTC")),
                 Algorithm.RS256,
                 new ObjectMapper(),

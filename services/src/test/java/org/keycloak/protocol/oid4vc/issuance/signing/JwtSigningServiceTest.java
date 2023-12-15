@@ -27,7 +27,7 @@ class JwtSigningServiceTest extends SigningServiceTest {
         RSAKeyLoader keyLoader = new RSAKeyLoader();
         JwtSigningService jwtSigningService = new JwtSigningService(
                 keyLoader,
-                Optional.of("my-key-id"),
+                "my-key-id",
                 Clock.fixed(Instant.ofEpochSecond(1000), ZoneId.of("UTC")),
                 Algorithm.RS256);
 
@@ -42,7 +42,6 @@ class JwtSigningServiceTest extends SigningServiceTest {
             fail("The credential should successfully be verified.", e);
         }
     }
-
 
 
 }

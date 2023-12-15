@@ -30,12 +30,13 @@ import static org.keycloak.protocol.oid4vc.issuance.signing.jwt_vc.EdDSASignatur
 
 public class JwtSigningService extends SigningService<String> {
 
+    public static final String PROVIDER_ID = "jwt-signing";
     private static final String ID_TEMPLATE = "urn:uuid:%s";
 
     private SignatureSignerContext signatureSignerContext;
 
-    public JwtSigningService(KeyLoader keyLoader, Optional<String> optionalKeyId, Clock clock, String algorithmType) {
-        super(keyLoader, optionalKeyId, clock, algorithmType);
+    public JwtSigningService(KeyLoader keyLoader, String keyId, Clock clock, String algorithmType) {
+        super(keyLoader, keyId, clock, algorithmType);
 
         var signingKey = getKeyWrapper(algorithmType);
         signatureSignerContext = switch (algorithmType) {
@@ -71,7 +72,7 @@ public class JwtSigningService extends SigningService<String> {
 
     protected String signToken(JsonWebToken jsonWebToken, String type) {
         JWSBuilder jwsBuilder = new JWSBuilder();
-        optionalKeyId.ifPresent(jwsBuilder::kid);
+        jwsBuilder.kid(keyId);
         jwsBuilder.type(type);
         return jwsBuilder.jsonContent(jsonWebToken).sign(signatureSignerContext);
     }
@@ -80,14 +81,13 @@ public class JwtSigningService extends SigningService<String> {
         KeyPair keyPair = parsePem(keyLoader.loadKey());
 
         KeyWrapper keyWrapper = new KeyWrapper();
-        optionalKeyId.ifPresent(keyWrapper::setKid);
+        keyWrapper.setKid(keyId);
 
         keyWrapper.setAlgorithm(algorithm);
         keyWrapper.setPrivateKey(keyPair.getPrivate());
 
         if (keyPair.getPublic() != null) {
             keyWrapper.setPublicKey(keyPair.getPublic());
-            keyWrapper.setKid(KeyUtils.createKeyId(keyPair.getPublic()));
             keyWrapper.setType(keyPair.getPublic().getAlgorithm());
         }
         keyWrapper.setUse(KeyUse.SIG);

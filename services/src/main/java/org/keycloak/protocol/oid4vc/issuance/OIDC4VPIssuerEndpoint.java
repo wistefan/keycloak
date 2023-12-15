@@ -63,78 +63,24 @@ public class OIDC4VPIssuerEndpoint {
 
     private final String issuerDid;
 
-    private final boolean ldSigningEnabled;
-    private final boolean jwtSigningEnabled;
-    private final boolean sdJwtSigningEnabled;
     private LDSigningService ldSigningService;
     private JwtSigningService jwtSigningService;
     private SdJwtSigningService sdJwtSigningService;
 
+    private final Map<Format, VCSigningService> signingServices;
+
     public OIDC4VPIssuerEndpoint(KeycloakSession session,
                                  String issuerDid,
-                                 String keyPath,
-                                 Optional<String> jwtType,
-                                 Optional<String> ldpType,
-                                 Optional<String> sdJwtType,
+                                 Map<Format, VCSigningService> signingServices,
                                  AppAuthManager.BearerTokenAuthenticator authenticator,
-                                 ObjectMapper objectMapper, Clock clock, Integer decoys, Optional<String> keyId) {
+                                 ObjectMapper objectMapper, Clock clock) {
         this.session = session;
         this.bearerTokenAuthenticator = authenticator;
         this.objectMapper = objectMapper;
         this.clock = clock;
         this.issuerDid = issuerDid;
-        var tempJwtSigningEnabled = false;
-        if (jwtType.isPresent()) {
-            try {
-                this.jwtSigningService = new JwtSigningService(
-                        new FileBasedKeyLoader(keyPath),
-                        keyId,
-                        clock,
-                        jwtType.get());
-                tempJwtSigningEnabled = true;
-            } catch (SigningServiceException e) {
-                LOGGER.warn("Was not able to initialize JWT SigningService, jwt credentials are not supported.", e);
-                throw new IllegalArgumentException("No valid jwt_vc signing configured.", e);
-            }
-        }
-        this.jwtSigningEnabled = tempJwtSigningEnabled;
+        this.signingServices = signingServices;
 
-        var tempLdSigningEnabled = false;
-        if (ldpType.isPresent()) {
-            try {
-                this.ldSigningService = new LDSigningService(
-                        new FileBasedKeyLoader(keyPath),
-                        keyId,
-                        clock,
-                        ldpType.get(),
-                        objectMapper);
-                tempLdSigningEnabled = true;
-            } catch (SigningServiceException e) {
-                LOGGER.warn("Was not able to initialize LD SigningService, ld credentials are not supported.", e);
-                throw new IllegalArgumentException("No valid ldp_vc signing configured.", e);
-
-            }
-        }
-        this.ldSigningEnabled = tempLdSigningEnabled;
-
-        var tempSdJWTSigningEnabled = false;
-        if (ldpType.isPresent()) {
-            try {
-                this.sdJwtSigningService = new SdJwtSigningService(
-                        new FileBasedKeyLoader(keyPath),
-                        keyId,
-                        clock,
-                        sdJwtType.get(),
-                        objectMapper,
-                        decoys);
-                tempSdJWTSigningEnabled = true;
-            } catch (SigningServiceException e) {
-                LOGGER.warn("Was not able to initialize SD-JWT SigningService, sd-jwt credentials are not supported.", e);
-                throw new IllegalArgumentException("No valid sd-jwt signing configured.", e);
-
-            }
-        }
-        this.sdJwtSigningEnabled = tempSdJWTSigningEnabled;
     }
 
     /**
@@ -344,22 +290,22 @@ public class OIDC4VPIssuerEndpoint {
 
         return switch (format) {
             case LDP_VC -> {
-                if (ldSigningEnabled) {
-                    yield ldSigningService.signCredential(credentialToSign);
+                if (signingServices.containsKey(LDP_VC)) {
+                    yield signingServices.get(LDP_VC).signCredential(credentialToSign);
                 }
                 throw new IllegalArgumentException(
                         String.format("Requested format %s is not supported.", format));
             }
             case JWT_VC -> {
-                if (jwtSigningEnabled) {
-                    yield jwtSigningService.signCredential(credentialToSign);
+                if (signingServices.containsKey(JWT_VC)) {
+                    yield signingServices.get(JWT_VC).signCredential(credentialToSign);
                 }
                 throw new IllegalArgumentException(
                         String.format("Requested format %s is not supported.", format));
             }
             case SD_JWT_VC -> {
-                if (sdJwtSigningEnabled) {
-                    yield sdJwtSigningService.signCredential(credentialToSign);
+                if (signingServices.containsKey(SD_JWT_VC)) {
+                    yield signingServices.get(SD_JWT_VC).signCredential(credentialToSign);
                 }
                 throw new IllegalArgumentException(
                         String.format("Requested format %s is not supported.", format));
@@ -455,16 +401,6 @@ public class OIDC4VPIssuerEndpoint {
     }
 
     @NotNull
-    private Role toRolesClaim(ClientRoleModel crm) {
-        Set<String> roleNames = crm
-                .getRoleModels()
-                .stream()
-                .map(RoleModel::getName)
-                .collect(Collectors.toSet());
-        return new Role(roleNames, crm.getClientId());
-    }
-
-    @NotNull
     private VerifiableCredential getVCToSign(List<OIDC4VPMapper> protocolMappers, String vcType,
                                              UserSessionModel userSessionModel) {
 
@@ -473,7 +409,7 @@ public class OIDC4VPIssuerEndpoint {
         // set the required claims
         vc.setIssuer(URI.create(issuerDid));
         vc.setIssuanceDate(Date.from(clock.instant()));
-
+        vc.addType(vcType);
         Map<String, Object> subjectClaims = new HashMap<>();
 
         protocolMappers
@@ -493,82 +429,6 @@ public class OIDC4VPIssuerEndpoint {
             vc.setId(URI.create(String.format("uri:uuid:%s", UUID.randomUUID())));
         }
         return vc;
-    }
-
-    private void verifyProof(LdProof proof) {
-        switch (proof.getType()) {
-            // TODO: fix types
-            case "JWT" -> verifyJWTProof(proof.getJws());
-            case "LD_PROOF" -> throw new IllegalArgumentException("LD Proofs on the request are not yet supported.");
-        }
-    }
-
-    private void verifyJWTProof(String jwt) {
-
-        var verifier = TokenVerifier.create(jwt, JsonWebToken.class)
-                .withChecks(jsonWebToken -> jsonWebToken.getType().equals("openid4vci-proof+jwt"),
-                        jsonWebToken -> jsonWebToken.getAudience().length == 1,
-                        jsonWebToken -> jsonWebToken.getAudience()[0].equals(
-                                OIDC4VPAbstractWellKnownProvider.getIssuer(session.getContext())),
-                        jsonWebToken -> jsonWebToken.getOtherClaims().containsKey("nonce"));
-
-        try {
-            verifier.verify();
-        } catch (VerificationException e) {
-            LOGGER.warnf("Was not able to verify the jwt proof.", e);
-            throw new BadRequestException(getErrorResponse(ErrorResponse.ErrorEnum.INVALID_OR_MISSING_PROOF));
-        }
-
-    }
-
-    @NotNull
-    private List<String> getClaimsToSet(String credentialType, List<ClientModel> clients) {
-        String claims = clients.stream()
-                .map(ClientModel::getAttributes)
-                .filter(Objects::nonNull)
-                .map(Map::entrySet)
-                .flatMap(Set::stream)
-                // get the claims
-                .filter(entry -> entry.getKey().equals(String.format("%s_%s", credentialType, "claims")))
-                .findFirst()
-                .map(Map.Entry::getValue)
-                .orElse("");
-        LOGGER.infof("Should set %s for %s.", claims, credentialType);
-        return Arrays.asList(claims.split(","));
-
-    }
-
-    @NotNull
-    private Optional<Map<String, String>> getAdditionalClaims(List<ClientModel> clients) {
-        Map<String, String> additionalClaims = clients.stream()
-                .map(ClientModel::getAttributes)
-                .filter(Objects::nonNull)
-                .map(Map::entrySet)
-                .flatMap(Set::stream)
-                // only include the claims explicitly intended for vc
-                .filter(entry -> entry.getKey().startsWith(OIDC4VPClientRegistrationProvider.VC_CLAIMS_PREFIX))
-                .collect(
-                        Collectors.toMap(
-                                // remove the prefix before sending it
-                                entry -> entry.getKey()
-                                        .replaceFirst(OIDC4VPClientRegistrationProvider.VC_CLAIMS_PREFIX, ""),
-                                // value is taken untouched if its unique
-                                Map.Entry::getValue,
-                                // if multiple values for the same key exist, we add them comma separated.
-                                // this needs to be improved, once more requirements are known.
-                                (entry1, entry2) -> {
-                                    if (entry1.equals(entry2) || entry1.contains(entry2)) {
-                                        return entry1;
-                                    } else {
-                                        return String.format("%s,%s", entry1, entry2);
-                                    }
-                                }
-                        ));
-        if (additionalClaims.isEmpty()) {
-            return Optional.empty();
-        } else {
-            return Optional.of(additionalClaims);
-        }
     }
 
     private static class ClientRoleModel {

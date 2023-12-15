@@ -4,17 +4,14 @@ import com.fasterxml.jackson.annotation.*;
 import org.keycloak.protocol.oid4vc.model.vcdm.LdProof;
 
 import java.net.URI;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class VerifiableCredential {
 
     @JsonProperty("@context")
     private List<String> context;
-    private List<String> type;
+    private List<String> type = new ArrayList<>();
     private URI issuer;
     private Date issuanceDate;
     private URI id;
@@ -48,6 +45,10 @@ public class VerifiableCredential {
 
     public void setType(List<String> type) {
         this.type = type;
+    }
+
+    public void addType(String type) {
+        this.type.add(type);
     }
 
     public URI getIssuer() {

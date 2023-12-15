@@ -16,6 +16,9 @@ import java.time.Clock;
 import java.util.*;
 
 public class SdJwtSigningService extends JwtSigningService {
+
+
+    public static final String PROVIDER_ID = "sd-jwt-signing";
     private final ObjectMapper objectMapper;
     private final HashProvider hashProvider;
     private final int decoys;
@@ -29,8 +32,8 @@ public class SdJwtSigningService extends JwtSigningService {
     // TODO: cryptographic key binding is not yet implemented(@see https://www.ietf.org/archive/id/draft-terbu-oauth-sd-jwt-vc-00.html#section-4.2.2.2-3.5.1}.
     // should be added
 
-    public SdJwtSigningService(KeyLoader keyLoader, Optional<String> optionalKeyId, Clock clock, String algorithmType, ObjectMapper objectMapper, int decoys) {
-        super(keyLoader, optionalKeyId, clock, algorithmType);
+    public SdJwtSigningService(KeyLoader keyLoader, String keyId, Clock clock, String algorithmType, ObjectMapper objectMapper, int decoys) {
+        super(keyLoader, keyId, clock, algorithmType);
         this.objectMapper = objectMapper;
         // make configurable
         this.hashProvider = new JavaAlgorithmHashProvider(JavaAlgorithm.SHA256);
@@ -72,7 +75,7 @@ public class SdJwtSigningService extends JwtSigningService {
         jsonWebToken.issuer(verifiableCredential.getIssuer().toString());
         jsonWebToken.nbf(clock.instant().getEpochSecond());
         jsonWebToken.iat(clock.instant().getEpochSecond());
-        if (verifiableCredential.getType().size() != 1) {
+        if (verifiableCredential.getType() == null || verifiableCredential.getType().size() != 1) {
             throw new SigningServiceException("SD-JWT only supports single type credentials.");
         }
         jsonWebToken.setOtherClaims("type", verifiableCredential.getType().get(0));
