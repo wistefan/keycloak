@@ -425,10 +425,10 @@ public class OIDC4VPIssuerEndpoint {
             vc.setContext(List.of("https://www.w3.org/2018/credentials/v1"));
         }
 
-        if (vc.getId() == null) {
+        if (vc.getId() == null && vc.getAdditionalProperties().get("id") == null) {
             vc.setId(URI.create(String.format("uri:uuid:%s", UUID.randomUUID())));
         }
-        if (vc.getCredentialSubject().getId() == null) {
+        if (vc.getCredentialSubject().getId() == null && vc.getCredentialSubject().getClaims().get("id") == null) {
             vc.getCredentialSubject().setId(String.format("uri:uuid:%s", UUID.randomUUID()));
         }
         return vc;

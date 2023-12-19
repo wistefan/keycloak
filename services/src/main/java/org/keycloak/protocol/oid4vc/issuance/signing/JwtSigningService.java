@@ -1,13 +1,18 @@
 package org.keycloak.protocol.oid4vc.issuance.signing;
 
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openssl.PEMKeyPair;
 import org.bouncycastle.openssl.PEMParser;
+import org.jboss.logging.Logger;
 import org.keycloak.common.util.KeyUtils;
 import org.keycloak.crypto.*;
 import org.keycloak.jose.jws.JWSBuilder;
+import org.keycloak.protocol.oid4vc.issuance.OIDC4VPWellKnownProviderFactory;
 import org.keycloak.protocol.oid4vc.issuance.signing.jwt_vc.EdDSASignatureSignerContext;
 import org.keycloak.protocol.oid4vc.model.VerifiableCredential;
 import org.keycloak.representations.JsonWebToken;
@@ -30,6 +35,9 @@ import static org.keycloak.protocol.oid4vc.issuance.signing.jwt_vc.EdDSASignatur
 
 public class JwtSigningService extends SigningService<String> {
 
+
+    private static final Logger LOGGER = Logger.getLogger(JwtSigningService.class);
+
     public static final String PROVIDER_ID = "jwt-signing";
     private static final String ID_TEMPLATE = "urn:uuid:%s";
 
@@ -37,7 +45,6 @@ public class JwtSigningService extends SigningService<String> {
 
     public JwtSigningService(KeyLoader keyLoader, String keyId, Clock clock, String algorithmType) {
         super(keyLoader, keyId, clock, algorithmType);
-
         var signingKey = getKeyWrapper(algorithmType);
         signatureSignerContext = switch (algorithmType) {
             case ED_25519 -> new EdDSASignatureSignerContext(signingKey);
@@ -51,23 +58,17 @@ public class JwtSigningService extends SigningService<String> {
 
     @Override
     public String signCredential(VerifiableCredential verifiableCredential) {
-
         JsonWebToken jsonWebToken = new JsonWebToken();
         Optional.ofNullable(verifiableCredential.getExpirationDate()).ifPresent(d -> jsonWebToken.exp(d.getTime()));
         jsonWebToken.issuer(verifiableCredential.getIssuer().toString());
         jsonWebToken.nbf(clock.instant().getEpochSecond());
         jsonWebToken.iat(clock.instant().getEpochSecond());
-        var credentialId = Optional.ofNullable(verifiableCredential.getAdditionalProperties().get("id")).orElse(String.format(ID_TEMPLATE, UUID.randomUUID()));
-        if (credentialId instanceof String idString) {
-            jsonWebToken.id(idString);
-        } else if (credentialId instanceof URI idUri) {
-            jsonWebToken.id(idUri.toString());
-        } else {
-            throw new SigningServiceException("The id needs to be a URI or a string.");
-        }
+        var credentialId = Optional.ofNullable(verifiableCredential.getId()).orElse(URI.create(String.format(ID_TEMPLATE, UUID.randomUUID())));
+        jsonWebToken.id(credentialId.toString());
+
         jsonWebToken.subject(verifiableCredential.getCredentialSubject().getId());
         jsonWebToken.setOtherClaims("vc", verifiableCredential);
-        return signToken(jsonWebToken, type);
+        return signToken(jsonWebToken, "JWT");
     }
 
     protected String signToken(JsonWebToken jsonWebToken, String type) {
@@ -137,7 +138,7 @@ public class JwtSigningService extends SigningService<String> {
                     new PKCS8EncodedKeySpec(privateKeyInfo.getEncoded()));
             return new KeyPair(publicKey, privateKey);
         } catch (NoSuchAlgorithmException | InvalidKeySpecException | IOException e) {
-            throw new SigningServiceException("Was not able to get the public key.", e);
+            throw new SigningServiceException("Was not able to get the private key.", e);
         }
     }
 }
