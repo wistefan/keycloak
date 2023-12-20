@@ -14,15 +14,20 @@ import org.keycloak.wellknown.WellKnownProvider;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static org.keycloak.protocol.oid4vc.OIDC4VPClientRegistrationProvider.VC_TYPES_PREFIX;
+import static org.keycloak.protocol.oid4vc.OID4VPClientRegistrationProvider.VC_TYPES_PREFIX;
 
-public abstract class OIDC4VPAbstractWellKnownProvider implements WellKnownProvider {
+/**
+ * Super class for the OID4VC focused {@link  WellKnownProvider}
+ *
+ * @author <a href="https://github.com/wistefan">Stefan Wiedemann</a>
+ */
+public abstract class OID4VPAbstractWellKnownProvider implements WellKnownProvider {
 
     protected final KeycloakSession keycloakSession;
     protected final ObjectMapper objectMapper;
 
-    protected OIDC4VPAbstractWellKnownProvider(KeycloakSession keycloakSession,
-                                               ObjectMapper objectMapper) {
+    protected OID4VPAbstractWellKnownProvider(KeycloakSession keycloakSession,
+                                              ObjectMapper objectMapper) {
         this.keycloakSession = keycloakSession;
         this.objectMapper = objectMapper;
     }
@@ -90,6 +95,6 @@ public abstract class OIDC4VPAbstractWellKnownProvider implements WellKnownProvi
     }
 
     public static String getCredentialsEndpoint(KeycloakContext context) {
-        return getIssuer(context) + "/protocol/" + OIDC4VPLoginProtocolFactory.PROTOCOL_ID + "/credential";
+        return getIssuer(context) + "/protocol/" + OID4VPLoginProtocolFactory.PROTOCOL_ID + "/credential";
     }
 }

@@ -7,18 +7,15 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.Response;
 import org.jboss.logging.Logger;
-import org.keycloak.TokenVerifier;
-import org.keycloak.common.VerificationException;
 import org.keycloak.common.util.Time;
 import org.keycloak.events.EventBuilder;
 import org.keycloak.models.*;
-import org.keycloak.protocol.oid4vc.OIDC4VPAbstractWellKnownProvider;
-import org.keycloak.protocol.oid4vc.OIDC4VPClientRegistrationProvider;
-import org.keycloak.protocol.oid4vc.OIDC4VPClientRegistrationProviderFactory;
+import org.keycloak.protocol.oid4vc.OID4VPAbstractWellKnownProvider;
+import org.keycloak.protocol.oid4vc.OID4VPClientRegistrationProviderFactory;
 import org.keycloak.protocol.oidc.utils.OAuth2Code;
 import org.keycloak.protocol.oidc.utils.OAuth2CodeParser;
-import org.keycloak.protocol.oid4vc.issuance.mappers.OIDC4VPMapper;
-import org.keycloak.protocol.oid4vc.issuance.mappers.OIDC4VPMapperFactory;
+import org.keycloak.protocol.oid4vc.issuance.mappers.OID4VPMapper;
+import org.keycloak.protocol.oid4vc.issuance.mappers.OID4VPMapperFactory;
 import org.keycloak.protocol.oid4vc.model.*;
 import org.keycloak.protocol.oid4vc.model.CredentialOfferURI;
 import org.keycloak.protocol.oid4vc.model.CredentialRequest;
@@ -29,9 +26,7 @@ import org.keycloak.protocol.oid4vc.model.Format;
 import org.keycloak.protocol.oid4vc.model.PreAuthorized;
 import org.keycloak.protocol.oid4vc.model.PreAuthorizedGrant;
 import org.keycloak.protocol.oid4vc.model.SupportedCredential;
-import org.keycloak.protocol.oid4vc.model.vcdm.LdProof;
 import org.keycloak.protocol.oid4vc.issuance.signing.*;
-import org.keycloak.representations.JsonWebToken;
 import org.keycloak.services.managers.AppAuthManager;
 import org.keycloak.services.managers.AuthenticationManager;
 
@@ -40,16 +35,19 @@ import java.time.Clock;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static org.keycloak.protocol.oid4vc.OIDC4VPClientRegistrationProvider.VC_TYPES_PREFIX;
+import static org.keycloak.protocol.oid4vc.OID4VPClientRegistrationProvider.VC_TYPES_PREFIX;
 import static org.keycloak.protocol.oid4vc.model.Format.*;
 
 /**
- * Realm-Resource to provide functionality for issuing VerifiableCredentials to users, depending on their roles in
- * registered OIDC4VP clients
+ * Provides the (REST-)endpoints required for the OID4VCI protocol.
+ *
+ * {@see https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html}
+ *
+ * @author <a href="https://github.com/wistefan">Stefan Wiedemann</a>
  */
-public class OIDC4VPIssuerEndpoint {
+public class OID4VPIssuerEndpoint {
 
-    private static final Logger LOGGER = Logger.getLogger(OIDC4VPIssuerEndpoint.class);
+    private static final Logger LOGGER = Logger.getLogger(OID4VPIssuerEndpoint.class);
 
     public static final String CREDENTIAL_PATH = "credential";
     public static final String TYPE_VERIFIABLE_CREDENTIAL = "VerifiableCredential";
@@ -67,13 +65,13 @@ public class OIDC4VPIssuerEndpoint {
     private JwtSigningService jwtSigningService;
     private SdJwtSigningService sdJwtSigningService;
 
-    private final Map<Format, VCSigningService> signingServices;
+    private final Map<Format, VerifiableCredentialsSigningService> signingServices;
 
-    public OIDC4VPIssuerEndpoint(KeycloakSession session,
-                                 String issuerDid,
-                                 Map<Format, VCSigningService> signingServices,
-                                 AppAuthManager.BearerTokenAuthenticator authenticator,
-                                 ObjectMapper objectMapper, Clock clock) {
+    public OID4VPIssuerEndpoint(KeycloakSession session,
+                                String issuerDid,
+                                Map<Format, VerifiableCredentialsSigningService> signingServices,
+                                AppAuthManager.BearerTokenAuthenticator authenticator,
+                                ObjectMapper objectMapper, Clock clock) {
         this.session = session;
         this.bearerTokenAuthenticator = authenticator;
         this.objectMapper = objectMapper;
@@ -90,7 +88,7 @@ public class OIDC4VPIssuerEndpoint {
     @Path("credential-offer-uri")
     public Response getCredentialOfferURI(@QueryParam("credentialId") String vcId) {
 
-        Map<String, SupportedCredential> credentialsMap = OIDC4VPAbstractWellKnownProvider
+        Map<String, SupportedCredential> credentialsMap = OID4VPAbstractWellKnownProvider
                 .getSupportedCredentials(session.getContext()).stream()
                 .collect(Collectors.toMap(SupportedCredential::getId, sc -> sc, (sc1, sc2) -> sc1));
 
@@ -123,7 +121,7 @@ public class OIDC4VPIssuerEndpoint {
         }
 
         CredentialOfferURI credentialOfferURI = new CredentialOfferURI();
-        credentialOfferURI.setIssuer(OIDC4VPAbstractWellKnownProvider.getIssuer(session.getContext()));
+        credentialOfferURI.setIssuer(OID4VPAbstractWellKnownProvider.getIssuer(session.getContext()));
         credentialOfferURI.setNonce(nonce);
 
         LOGGER.debugf("Responding with nonce: %s", nonce);
@@ -157,7 +155,7 @@ public class OIDC4VPIssuerEndpoint {
 
         String preAuthorizedCode = generateAuthorizationCodeForClientSession(result.getClientSession());
         CredentialsOffer theOffer = new CredentialsOffer()
-                .credentialIssuer(OIDC4VPAbstractWellKnownProvider.getIssuer(session.getContext()))
+                .credentialIssuer(OID4VPAbstractWellKnownProvider.getIssuer(session.getContext()))
                 .credentials(List.of(offeredCredential))
                 .grants(new PreAuthorizedGrant().
                         urnColonIetfColonParamsColonOauthColonGrantTypeColonPreAuthorizedCode(
@@ -236,8 +234,6 @@ public class OIDC4VPIssuerEndpoint {
             LOGGER.infof("Credential request contained multiple types. Req: %s", credentialRequestVO);
             throw new BadRequestException(getErrorResponse(ErrorResponse.ErrorEnum.INVALID_REQUEST));
         }
-        // verify the proof
-//		Optional.ofNullable(credentialRequestVO.getProof()).ifPresent(this::verifyProof);
 
         Format requestedFormat = credentialRequestVO.getFormat();
 
@@ -281,9 +277,9 @@ public class OIDC4VPIssuerEndpoint {
         // do first to fail fast on auth
         UserSessionModel userSessionModel = getUserSessionModel();
         List<ClientModel> clients = getClientsOfType(vcType, format);
-        List<OIDC4VPMapper> protocolMappers = getProtocolMappers(clients)
+        List<OID4VPMapper> protocolMappers = getProtocolMappers(clients)
                 .stream()
-                .map(OIDC4VPMapperFactory::createOIDC4VPMapper)
+                .map(OID4VPMapperFactory::createOIDC4VPMapper)
                 .toList();
 
         var credentialToSign = getVCToSign(protocolMappers, vcType, userSessionModel);
@@ -396,12 +392,12 @@ public class OIDC4VPIssuerEndpoint {
         return session.clients().getClientsStream(session.getContext().getRealm())
                 .filter(clientModel -> clientModel.getProtocol() != null)
                 .filter(clientModel -> clientModel.getProtocol()
-                        .equals(OIDC4VPClientRegistrationProviderFactory.PROTOCOL_ID))
+                        .equals(OID4VPClientRegistrationProviderFactory.PROTOCOL_ID))
                 .toList();
     }
 
     @NotNull
-    private VerifiableCredential getVCToSign(List<OIDC4VPMapper> protocolMappers, String vcType,
+    private VerifiableCredential getVCToSign(List<OID4VPMapper> protocolMappers, String vcType,
                                              UserSessionModel userSessionModel) {
 
         var vc = new VerifiableCredential();
@@ -432,24 +428,6 @@ public class OIDC4VPIssuerEndpoint {
             vc.getCredentialSubject().setId(String.format("uri:uuid:%s", UUID.randomUUID()));
         }
         return vc;
-    }
-
-    private static class ClientRoleModel {
-        private final String clientId;
-        private final List<RoleModel> roleModels;
-
-        public ClientRoleModel(String clientId, List<RoleModel> roleModels) {
-            this.clientId = clientId;
-            this.roleModels = roleModels;
-        }
-
-        public String getClientId() {
-            return clientId;
-        }
-
-        public List<RoleModel> getRoleModels() {
-            return roleModels;
-        }
     }
 }
 

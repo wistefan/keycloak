@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.keycloak.crypto.HashProvider;
 import org.keycloak.crypto.JavaAlgorithm;
 import org.keycloak.crypto.JavaAlgorithmHashProvider;
+import org.keycloak.models.KeycloakSession;
 import org.keycloak.protocol.oid4vc.model.CredentialSubject;
 import org.keycloak.protocol.oid4vc.model.VerifiableCredential;
 import org.keycloak.protocol.oid4vc.model.sd_jwt_vc.*;
@@ -15,6 +16,15 @@ import java.security.SecureRandom;
 import java.time.Clock;
 import java.util.*;
 
+/**
+ * {@link VerifiableCredentialsSigningService} implementing the SD_JWT_VC format. It returns a String, containing
+ * the signed SD-JWT
+ *
+ * {@see https://drafts.oauth.net/oauth-sd-jwt-vc/draft-ietf-oauth-sd-jwt-vc.html}
+ * {@see https://www.ietf.org/archive/id/draft-fett-oauth-selective-disclosure-jwt-02.html}
+ *
+ * @author <a href="https://github.com/wistefan">Stefan Wiedemann</a>
+ */
 public class SdJwtSigningService extends JwtSigningService {
 
 
@@ -32,8 +42,8 @@ public class SdJwtSigningService extends JwtSigningService {
     // TODO: cryptographic key binding is not yet implemented(@see https://www.ietf.org/archive/id/draft-terbu-oauth-sd-jwt-vc-00.html#section-4.2.2.2-3.5.1}.
     // should be added
 
-    public SdJwtSigningService(KeyLoader keyLoader, String keyId, Clock clock, String algorithmType, ObjectMapper objectMapper, int decoys) {
-        super(keyLoader, keyId, clock, algorithmType);
+    public SdJwtSigningService(KeycloakSession keycloakSession, String keyId, Clock clock, String algorithmType, ObjectMapper objectMapper, int decoys) {
+        super(keycloakSession, keyId, clock, algorithmType);
         this.objectMapper = objectMapper;
         // make configurable
         this.hashProvider = new JavaAlgorithmHashProvider(JavaAlgorithm.SHA256);

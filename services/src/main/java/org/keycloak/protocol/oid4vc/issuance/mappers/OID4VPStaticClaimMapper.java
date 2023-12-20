@@ -2,7 +2,7 @@ package org.keycloak.protocol.oid4vc.issuance.mappers;
 
 import org.keycloak.models.ProtocolMapperModel;
 import org.keycloak.models.UserSessionModel;
-import org.keycloak.protocol.oid4vc.OIDC4VPClientRegistrationProviderFactory;
+import org.keycloak.protocol.oid4vc.OID4VPClientRegistrationProviderFactory;
 import org.keycloak.protocol.oid4vc.model.VerifiableCredential;
 import org.keycloak.provider.ProviderConfigProperty;
 
@@ -11,7 +11,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class OIDC4VPStaticClaimMapper extends OIDC4VPMapper {
+/**
+ * Allows to add statically configured claims to the credential subject
+ *
+ * @author <a href="https://github.com/wistefan">Stefan Wiedemann</a>
+ */
+public class OID4VPStaticClaimMapper extends OID4VPMapper {
 
 	public static final String MAPPER_ID = "oidc4vp-static-claim-mapper";
 
@@ -20,7 +25,7 @@ public class OIDC4VPStaticClaimMapper extends OIDC4VPMapper {
 
 	private static final List<ProviderConfigProperty> CONFIG_PROPERTIES = new ArrayList<>();
 
-	public OIDC4VPStaticClaimMapper() {
+	public OID4VPStaticClaimMapper() {
 		super();
 		ProviderConfigProperty subjectPropertyNameConfig = new ProviderConfigProperty();
 		subjectPropertyNameConfig.setName(SUBJECT_PROPERTY_CONFIG_KEY);
@@ -45,7 +50,7 @@ public class OIDC4VPStaticClaimMapper extends OIDC4VPMapper {
 		configMap.put(SUBJECT_PROPERTY_CONFIG_KEY, propertyName);
 		configMap.put(STATIC_CLAIM_KEY, value);
 		mapperModel.setConfig(configMap);
-		mapperModel.setProtocol(OIDC4VPClientRegistrationProviderFactory.PROTOCOL_ID);
+		mapperModel.setProtocol(OID4VPClientRegistrationProviderFactory.PROTOCOL_ID);
 		mapperModel.setProtocolMapper(MAPPER_ID);
 		return mapperModel;
 	}

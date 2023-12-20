@@ -2,20 +2,25 @@ package org.keycloak.protocol.oid4vc.issuance.mappers;
 
 import org.keycloak.models.ProtocolMapperModel;
 import org.keycloak.models.UserSessionModel;
-import org.keycloak.protocol.oid4vc.OIDC4VPClientRegistrationProviderFactory;
+import org.keycloak.protocol.oid4vc.OID4VPClientRegistrationProviderFactory;
 import org.keycloak.protocol.oid4vc.model.VerifiableCredential;
 import org.keycloak.provider.ProviderConfigProperty;
 
 import java.util.*;
 
-public class OIDC4VPTypeMapper extends OIDC4VPMapper {
+/**
+ * Allows to add types to the credential subject
+ *
+ * @author <a href="https://github.com/wistefan">Stefan Wiedemann</a>
+ */
+public class OID4VPTypeMapper extends OID4VPMapper {
 
     public static final String MAPPER_ID = "oidc4vp-vc-type-mapper";
     public static final String TYPE_KEY = "vcTypeProperty";
 
     private static final List<ProviderConfigProperty> CONFIG_PROPERTIES = new ArrayList<>();
 
-    public OIDC4VPTypeMapper() {
+    public OID4VPTypeMapper() {
         super();
         ProviderConfigProperty vcTypePropertyNameConfig = new ProviderConfigProperty();
         vcTypePropertyNameConfig.setName(TYPE_KEY);
@@ -37,7 +42,7 @@ public class OIDC4VPTypeMapper extends OIDC4VPMapper {
         Map<String, String> configMap = new HashMap<>();
         configMap.put(SUPPORTED_CREDENTIALS_KEY, "VerifiableCredential");
         mapperModel.setConfig(configMap);
-        mapperModel.setProtocol(OIDC4VPClientRegistrationProviderFactory.PROTOCOL_ID);
+        mapperModel.setProtocol(OID4VPClientRegistrationProviderFactory.PROTOCOL_ID);
         mapperModel.setProtocolMapper(MAPPER_ID);
         return mapperModel;
     }
@@ -60,12 +65,12 @@ public class OIDC4VPTypeMapper extends OIDC4VPMapper {
 
     @Override
     public String getDisplayType() {
-        return "CredentialSubject ID Mapper";
+        return "Credential Type Mapper";
     }
 
     @Override
     public String getHelpText() {
-        return "Assigns a subject ID to the credentials subject. If no specific id is configured, a randomly generated one is used.";
+        return "Assigns a type to the credential.";
     }
 
     @Override

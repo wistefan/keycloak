@@ -1,19 +1,28 @@
 package org.keycloak.protocol.oid4vc.issuance.signing;
 
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
+import org.keycloak.crypto.KeyUse;
+import org.keycloak.crypto.KeyWrapper;
+import org.keycloak.models.KeyManager;
+import org.keycloak.models.KeycloakContext;
+import org.keycloak.models.KeycloakSession;
+import org.keycloak.models.RealmModel;
 import org.keycloak.protocol.oid4vc.model.CredentialSubject;
 import org.keycloak.protocol.oid4vc.model.VerifiableCredential;
 
 import java.io.IOException;
 import java.io.StringWriter;
 import java.net.URI;
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
-import java.security.NoSuchAlgorithmException;
+import java.security.*;
 import java.time.Instant;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
+
+import static org.mockito.Matchers.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public abstract class SigningServiceTest {
 
@@ -35,38 +44,73 @@ public abstract class SigningServiceTest {
         return testCredential;
     }
 
-    class RSAKeyLoader implements KeyLoader {
 
-        private KeyPair keyPair;
+    public static KeyWrapper getECKey(String keyId) {
+        try {
+            Security.addProvider(new BouncyCastleProvider());
+            KeyPairGenerator kpg = KeyPairGenerator.getInstance("EC", "BC");
+            kpg.initialize(256);
+            var keyPair = kpg.generateKeyPair();
+            KeyWrapper kw = new KeyWrapper();
+            kw.setPrivateKey(keyPair.getPrivate());
+            kw.setPublicKey(keyPair.getPublic());
+            kw.setUse(KeyUse.SIG);
+            kw.setKid(keyId);
+            kw.setType("EC");
+            return kw;
 
-        public KeyPair getKeyPair() {
-            return keyPair;
-        }
-
-        public RSAKeyLoader() {
-            try {
-                KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
-                kpg.initialize(2048);
-                keyPair = kpg.generateKeyPair();
-            } catch (NoSuchAlgorithmException e) {
-                throw new RuntimeException(e);
-            }
-        }
-
-        @Override
-        public String loadKey() {
-
-            StringWriter stringWriter = new StringWriter();
-            JcaPEMWriter pemWriter = new JcaPEMWriter(stringWriter);
-            try {
-                pemWriter.writeObject(keyPair);
-                pemWriter.flush();
-                pemWriter.close();
-                return stringWriter.toString();
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-
+        } catch (NoSuchAlgorithmException | NoSuchProviderException e) {
+            throw new RuntimeException(e);
         }
     }
+
+    public static KeyWrapper getEd25519Key(String keyId) {
+        try {
+            Security.addProvider(new BouncyCastleProvider());
+            KeyPairGenerator kpg = KeyPairGenerator.getInstance("Ed25519", "BC");
+            var keyPair = kpg.generateKeyPair();
+            KeyWrapper kw = new KeyWrapper();
+            kw.setPrivateKey(keyPair.getPrivate());
+            kw.setPublicKey(keyPair.getPublic());
+            kw.setUse(KeyUse.SIG);
+            kw.setKid(keyId);
+            kw.setType("Ed25519");
+            return kw;
+
+        } catch (NoSuchAlgorithmException | NoSuchProviderException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+
+    public static KeyWrapper getRsaKey(String keyId) {
+        try {
+            KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
+            kpg.initialize(2048);
+            var keyPair = kpg.generateKeyPair();
+            KeyWrapper kw = new KeyWrapper();
+            kw.setPrivateKey(keyPair.getPrivate());
+            kw.setPublicKey(keyPair.getPublic());
+            kw.setUse(KeyUse.SIG);
+            kw.setType("RSA");
+            kw.setKid(keyId);
+            return kw;
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static KeycloakSession getMockSession(KeyWrapper keyWrapper) {
+
+        KeycloakSession session = mock(KeycloakSession.class);
+        KeycloakContext context = mock(KeycloakContext.class);
+        KeyManager keyManager = mock(KeyManager.class);
+        RealmModel realmModel = mock(RealmModel.class);
+        when(session.keys()).thenReturn(keyManager);
+        when(session.getContext()).thenReturn(context);
+        when(context.getRealm()).thenReturn(realmModel);
+        when(keyManager.getKey(any(), eq(keyWrapper.getKid()), any(), anyString())).thenReturn(keyWrapper);
+        return session;
+    }
+
 }

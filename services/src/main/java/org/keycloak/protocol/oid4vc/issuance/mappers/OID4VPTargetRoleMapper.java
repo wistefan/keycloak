@@ -7,7 +7,7 @@ import org.keycloak.models.ClientModel;
 import org.keycloak.models.ProtocolMapperModel;
 import org.keycloak.models.RoleModel;
 import org.keycloak.models.UserSessionModel;
-import org.keycloak.protocol.oid4vc.OIDC4VPClientRegistrationProviderFactory;
+import org.keycloak.protocol.oid4vc.OID4VPClientRegistrationProviderFactory;
 import org.keycloak.protocol.oid4vc.model.Role;
 import org.keycloak.protocol.oid4vc.model.VerifiableCredential;
 import org.keycloak.provider.ProviderConfigProperty;
@@ -15,9 +15,14 @@ import org.keycloak.provider.ProviderConfigProperty;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class OIDC4VPTargetRoleMapper extends OIDC4VPMapper {
+/**
+ * Adds the users roles to the credential subject
+ *
+ * @author <a href="https://github.com/wistefan">Stefan Wiedemann</a>
+ */
+public class OID4VPTargetRoleMapper extends OID4VPMapper {
 
-    private static final Logger LOGGER = Logger.getLogger(OIDC4VPTargetRoleMapper.class);
+    private static final Logger LOGGER = Logger.getLogger(OID4VPTargetRoleMapper.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     public static final String MAPPER_ID = "oidc4vp-target-role-mapper";
@@ -26,7 +31,7 @@ public class OIDC4VPTargetRoleMapper extends OIDC4VPMapper {
 
     private static final List<ProviderConfigProperty> CONFIG_PROPERTIES = new ArrayList<>();
 
-    public OIDC4VPTargetRoleMapper() {
+    public OID4VPTargetRoleMapper() {
         super();
         ProviderConfigProperty subjectPropertyNameConfig = new ProviderConfigProperty();
         subjectPropertyNameConfig.setName(SUBJECT_PROPERTY_CONFIG_KEY);
@@ -59,7 +64,7 @@ public class OIDC4VPTargetRoleMapper extends OIDC4VPMapper {
         configMap.put(SUBJECT_PROPERTY_CONFIG_KEY, "roles");
         configMap.put(CLIENT_CONFIG_KEY, clientId);
         mapperModel.setConfig(configMap);
-        mapperModel.setProtocol(OIDC4VPClientRegistrationProviderFactory.PROTOCOL_ID);
+        mapperModel.setProtocol(OID4VPClientRegistrationProviderFactory.PROTOCOL_ID);
         mapperModel.setProtocolMapper(MAPPER_ID);
         return mapperModel;
     }
@@ -82,7 +87,7 @@ public class OIDC4VPTargetRoleMapper extends OIDC4VPMapper {
         String propertyName = mapperModel.getConfig().get(SUBJECT_PROPERTY_CONFIG_KEY);
         LOGGER.infof("Client is %s", client);
         ClientModel clientModel = userSessionModel.getRealm().getClientByClientId(client);
-        if (clientModel == null || !clientModel.getProtocol().equals(OIDC4VPClientRegistrationProviderFactory.PROTOCOL_ID)) {
+        if (clientModel == null || !clientModel.getProtocol().equals(OID4VPClientRegistrationProviderFactory.PROTOCOL_ID)) {
             return;
         }
 

@@ -6,6 +6,11 @@ import org.keycloak.protocol.oid4vc.model.vcdm.LdProof;
 import java.net.URI;
 import java.util.*;
 
+/**
+ * Pojo to represent a VerifiableCredential for internal handling
+ *
+ * @author <a href="https://github.com/wistefan">Stefan Wiedemann</a>
+ */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class VerifiableCredential {
 

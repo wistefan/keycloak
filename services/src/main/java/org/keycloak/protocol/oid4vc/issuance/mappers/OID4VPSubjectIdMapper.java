@@ -2,7 +2,7 @@ package org.keycloak.protocol.oid4vc.issuance.mappers;
 
 import org.keycloak.models.ProtocolMapperModel;
 import org.keycloak.models.UserSessionModel;
-import org.keycloak.protocol.oid4vc.OIDC4VPClientRegistrationProviderFactory;
+import org.keycloak.protocol.oid4vc.OID4VPClientRegistrationProviderFactory;
 import org.keycloak.protocol.oid4vc.model.VerifiableCredential;
 import org.keycloak.provider.ProviderConfigProperty;
 
@@ -12,14 +12,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-public class OIDC4VPSubjectIdMapper extends OIDC4VPMapper {
+/**
+ * Sets an ID for the credential, either randomly generated or statically configured
+ *
+ * @author <a href="https://github.com/wistefan">Stefan Wiedemann</a>
+ */
+public class OID4VPSubjectIdMapper extends OID4VPMapper {
 
 	public static final String MAPPER_ID = "oidc4vp-subject-id-mapper";
 	public static final String ID_KEY = "subjectIdProperty";
 
 	private static final List<ProviderConfigProperty> CONFIG_PROPERTIES = new ArrayList<>();
 
-	public OIDC4VPSubjectIdMapper() {
+	public OID4VPSubjectIdMapper() {
 		super();
 		ProviderConfigProperty idPropertyNameConfig = new ProviderConfigProperty();
 		idPropertyNameConfig.setName(ID_KEY);
@@ -42,7 +47,7 @@ public class OIDC4VPSubjectIdMapper extends OIDC4VPMapper {
 		configMap.put(ID_KEY, subjectId);
 		configMap.put(SUPPORTED_CREDENTIALS_KEY, "VerifiableCredential");
 		mapperModel.setConfig(configMap);
-		mapperModel.setProtocol(OIDC4VPClientRegistrationProviderFactory.PROTOCOL_ID);
+		mapperModel.setProtocol(OID4VPClientRegistrationProviderFactory.PROTOCOL_ID);
 		mapperModel.setProtocolMapper(MAPPER_ID);
 		return mapperModel;
 	}

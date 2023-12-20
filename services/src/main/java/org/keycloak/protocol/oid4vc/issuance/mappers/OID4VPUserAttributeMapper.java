@@ -4,7 +4,7 @@ import org.keycloak.models.ProtocolMapperModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.UserSessionModel;
 import org.keycloak.models.utils.KeycloakModelUtils;
-import org.keycloak.protocol.oid4vc.OIDC4VPClientRegistrationProviderFactory;
+import org.keycloak.protocol.oid4vc.OID4VPClientRegistrationProviderFactory;
 import org.keycloak.protocol.oid4vc.model.VerifiableCredential;
 import org.keycloak.provider.ProviderConfigProperty;
 
@@ -17,9 +17,11 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Factory implementation to provide the VCIssuer functionality as a realm resource.
+ * Allows to add user attributes to the credential subject
+ *
+ * @author <a href="https://github.com/wistefan">Stefan Wiedemann</a>
  */
-public class OIDC4VPUserAttributeMapper extends OIDC4VPMapper {
+public class OID4VPUserAttributeMapper extends OID4VPMapper {
 
 	public static final String MAPPER_ID = "oidc4vp-user-attribute-mapper";
 	public static final String SUBJECT_PROPERTY_CONFIG_KEY = "subjectProperty";
@@ -28,7 +30,7 @@ public class OIDC4VPUserAttributeMapper extends OIDC4VPMapper {
 
 	private static final List<ProviderConfigProperty> CONFIG_PROPERTIES = new ArrayList<>();
 
-	public OIDC4VPUserAttributeMapper() {
+	public OID4VPUserAttributeMapper() {
 		super();
 		ProviderConfigProperty subjectPropertyNameConfig = new ProviderConfigProperty();
 		subjectPropertyNameConfig.setName(SUBJECT_PROPERTY_CONFIG_KEY);
@@ -87,7 +89,7 @@ public class OIDC4VPUserAttributeMapper extends OIDC4VPMapper {
 		configMap.put(USER_ATTRIBUTE_KEY, userAttribute);
 		configMap.put(AGGREGATE_ATTRIBUTES_KEY, Boolean.toString(aggregateAttributes));
 		mapperModel.setConfig(configMap);
-		mapperModel.setProtocol(OIDC4VPClientRegistrationProviderFactory.PROTOCOL_ID);
+		mapperModel.setProtocol(OID4VPClientRegistrationProviderFactory.PROTOCOL_ID);
 		mapperModel.setProtocolMapper(MAPPER_ID);
 		return mapperModel;
 	}

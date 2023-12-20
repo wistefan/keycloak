@@ -1,18 +1,14 @@
 package org.keycloak.protocol.oid4vc.issuance.signing;
 
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openssl.PEMKeyPair;
 import org.bouncycastle.openssl.PEMParser;
 import org.jboss.logging.Logger;
-import org.keycloak.common.util.KeyUtils;
 import org.keycloak.crypto.*;
 import org.keycloak.jose.jws.JWSBuilder;
-import org.keycloak.protocol.oid4vc.issuance.OIDC4VPWellKnownProviderFactory;
+import org.keycloak.models.KeycloakSession;
 import org.keycloak.protocol.oid4vc.issuance.signing.jwt_vc.EdDSASignatureSignerContext;
 import org.keycloak.protocol.oid4vc.model.VerifiableCredential;
 import org.keycloak.representations.JsonWebToken;
@@ -32,20 +28,24 @@ import java.util.UUID;
 
 import static org.keycloak.protocol.oid4vc.issuance.signing.jwt_vc.EdDSASignatureSignerContext.ED_25519;
 
-
+/**
+ * {@link VerifiableCredentialsSigningService} implementing the JWT_VC format. It returns a string, containing the
+ * Signed JWT-Credential
+ * {@see https://identity.foundation/jwt-vc-presentation-profile/}
+ *
+ * @author <a href="https://github.com/wistefan">Stefan Wiedemann</a>
+ */
 public class JwtSigningService extends SigningService<String> {
 
-
-    private static final Logger LOGGER = Logger.getLogger(JwtSigningService.class);
 
     public static final String PROVIDER_ID = "jwt-signing";
     private static final String ID_TEMPLATE = "urn:uuid:%s";
 
-    private SignatureSignerContext signatureSignerContext;
+    private final SignatureSignerContext signatureSignerContext;
 
-    public JwtSigningService(KeyLoader keyLoader, String keyId, Clock clock, String algorithmType) {
-        super(keyLoader, keyId, clock, algorithmType);
-        var signingKey = getKeyWrapper(algorithmType);
+    public JwtSigningService(KeycloakSession keycloakSession, String keyId, Clock clock, String algorithmType) {
+        super(keycloakSession, keyId, clock, algorithmType);
+        var signingKey = getKey(keyId, algorithmType);
         signatureSignerContext = switch (algorithmType) {
             case ED_25519 -> new EdDSASignatureSignerContext(signingKey);
             case Algorithm.RS256, Algorithm.RS384, Algorithm.RS512, Algorithm.PS256, Algorithm.PS384, Algorithm.PS512 ->
@@ -78,67 +78,4 @@ public class JwtSigningService extends SigningService<String> {
         return jwsBuilder.jsonContent(jsonWebToken).sign(signatureSignerContext);
     }
 
-    private KeyWrapper getKeyWrapper(String algorithm) {
-        KeyPair keyPair = parsePem(keyLoader.loadKey());
-
-        KeyWrapper keyWrapper = new KeyWrapper();
-        keyWrapper.setKid(keyId);
-
-        keyWrapper.setAlgorithm(algorithm);
-        keyWrapper.setPrivateKey(keyPair.getPrivate());
-
-        if (keyPair.getPublic() != null) {
-            keyWrapper.setPublicKey(keyPair.getPublic());
-            keyWrapper.setType(keyPair.getPublic().getAlgorithm());
-        }
-        keyWrapper.setUse(KeyUse.SIG);
-        return keyWrapper;
-    }
-
-    protected KeyPair parsePem(String keyString) {
-        PEMParser pemParser = new PEMParser(new StringReader(keyString));
-        List<Object> parsedObjects = new ArrayList<>();
-        try {
-            var currentObject = pemParser.readObject();
-            while (currentObject != null) {
-                parsedObjects.add(currentObject);
-                currentObject = pemParser.readObject();
-            }
-        } catch (IOException e) {
-            throw new SigningServiceException("Was not able to parse the key-pem", e);
-        }
-        SubjectPublicKeyInfo publicKeyInfo = null;
-        PrivateKeyInfo privateKeyInfo = null;
-        for (Object parsedObject : parsedObjects) {
-            if (parsedObject instanceof SubjectPublicKeyInfo spki) {
-                publicKeyInfo = spki;
-            } else if (parsedObject instanceof PrivateKeyInfo pki) {
-                privateKeyInfo = pki;
-            } else if (parsedObject instanceof PEMKeyPair pkp) {
-                publicKeyInfo = pkp.getPublicKeyInfo();
-                privateKeyInfo = pkp.getPrivateKeyInfo();
-            }
-        }
-        if (privateKeyInfo == null) {
-            throw new SigningServiceException("Was not able to read a private key.");
-        }
-        PublicKey publicKey = null;
-        if (publicKeyInfo != null) {
-            try {
-                KeyFactory keyFactory = KeyFactory.getInstance(publicKeyInfo.getAlgorithm().getAlgorithm().getId());
-                publicKey = keyFactory.generatePublic(new X509EncodedKeySpec(publicKeyInfo.getEncoded()));
-            } catch (NoSuchAlgorithmException | InvalidKeySpecException | IOException e) {
-                throw new SigningServiceException("Was not able to get the public key.", e);
-            }
-        }
-        try {
-            KeyFactory privateKeyFactory = KeyFactory.getInstance(
-                    privateKeyInfo.getPrivateKeyAlgorithm().getAlgorithm().getId());
-            PrivateKey privateKey = privateKeyFactory.generatePrivate(
-                    new PKCS8EncodedKeySpec(privateKeyInfo.getEncoded()));
-            return new KeyPair(publicKey, privateKey);
-        } catch (NoSuchAlgorithmException | InvalidKeySpecException | IOException e) {
-            throw new SigningServiceException("Was not able to get the private key.", e);
-        }
-    }
 }

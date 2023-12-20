@@ -9,6 +9,12 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Pojo to represent a linked-data proof
+ * {@see https://www.w3.org/TR/vc-data-model}
+ *
+ * @author <a href="https://github.com/wistefan">Stefan Wiedemann</a>
+ */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class LdProof {
 

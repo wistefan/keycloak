@@ -7,8 +7,10 @@ import java.util.Map;
 
 /**
  * Pojo, containing all information required to create a VCClient.
+ *
+ * @author <a href="https://github.com/wistefan">Stefan Wiedemann</a>
  */
-public class OIDC4VPClient {
+public class OID4VPClient {
 
     /**
      * Did of the target/client, will be used as client-id
@@ -36,10 +38,10 @@ public class OIDC4VPClient {
      */
     private Map<String, String> additionalClaims;
 
-    public OIDC4VPClient() {
+    public OID4VPClient() {
     }
 
-    public OIDC4VPClient(String clientDid, List<SupportedCredential> supportedVCTypes, String description, String name, Long expiryInMin, Map<String, String> additionalClaims) {
+    public OID4VPClient(String clientDid, List<SupportedCredential> supportedVCTypes, String description, String name, Long expiryInMin, Map<String, String> additionalClaims) {
         this.clientDid = clientDid;
         this.supportedVCTypes = supportedVCTypes;
         this.description = description;

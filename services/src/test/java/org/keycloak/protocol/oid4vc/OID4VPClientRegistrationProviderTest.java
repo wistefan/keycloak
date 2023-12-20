@@ -5,7 +5,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.keycloak.protocol.oid4vc.issuance.OIDC4VPIssuerEndpointTest;
+import org.keycloak.protocol.oid4vc.issuance.OID4VPIssuerEndpointTest;
 import org.keycloak.protocol.oid4vc.model.Format;
 import org.keycloak.representations.idm.ClientRepresentation;
 import org.keycloak.services.ErrorResponseException;
@@ -20,16 +20,16 @@ import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.fail;
 
-public class OIDC4VPClientRegistrationProviderTest {
+public class OID4VPClientRegistrationProviderTest {
 
-    private static final Logger LOGGER = Logger.getLogger(OIDC4VPClientRegistrationProviderTest.class);
+    private static final Logger LOGGER = Logger.getLogger(OID4VPClientRegistrationProviderTest.class);
 
     @DisplayName("Validate clientRepresentation to fit the requirements of a SIOP-2 client.")
     @ParameterizedTest
     @MethodSource("provideClientRepresentations")
     public void testValidate(ClientRepresentation toTest, ExpectedResult<Boolean> expectedResult) {
         try {
-            OIDC4VPClientRegistrationProvider.validate(toTest);
+            OID4VPClientRegistrationProvider.validate(toTest);
         } catch (ErrorResponseException e) {
             if (expectedResult.getExpectedResult()) {
                 fail(expectedResult.getMessage());
@@ -44,10 +44,10 @@ public class OIDC4VPClientRegistrationProviderTest {
     @DisplayName("Validate that SIOP-2 clients are properly translated to ClientRepresentations")
     @ParameterizedTest
     @MethodSource("provideOIDC4VPClients")
-    public void testToClientRepresentation(OIDC4VPClient toTest, ExpectedResult<ClientRepresentation> expectedResult)
+    public void testToClientRepresentation(OID4VPClient toTest, ExpectedResult<ClientRepresentation> expectedResult)
             throws IllegalAccessException {
         String errorMessage = compare(expectedResult.getExpectedResult(),
-                OIDC4VPClientRegistrationProvider.toClientRepresentation(toTest));
+                OID4VPClientRegistrationProvider.toClientRepresentation(toTest));
         assertNull(errorMessage, String.format("%s - %s",
                 expectedResult.getMessage(), errorMessage));
     }
@@ -55,24 +55,24 @@ public class OIDC4VPClientRegistrationProviderTest {
     private static Stream<Arguments> provideOIDC4VPClients() {
         return Stream.of(
                 Arguments.of(
-                        new OIDC4VPClient("did:test:did", null, null, null, null, null),
+                        new OID4VPClient("did:test:did", null, null, null, null, null),
                         new ExpectedResult(getClientRepresentation("did:test:did"),
                                 "A valid client should have been created.")),
                 Arguments.of(
-                        new OIDC4VPClient("did:test:did", null, "my desc", null, null, null),
+                        new OID4VPClient("did:test:did", null, "my desc", null, null, null),
                         new ExpectedResult(getClientRepresentation("did:test:did", null, "my desc", null),
                                 "A valid client should have been created.")),
                 Arguments.of(
-                        new OIDC4VPClient("did:test:did", null, "my desc", "my name", null, null),
+                        new OID4VPClient("did:test:did", null, "my desc", "my name", null, null),
                         new ExpectedResult(getClientRepresentation("did:test:did", "my name", "my desc", null),
                                 "A valid client should have been created.")),
                 Arguments.of(
-                        new OIDC4VPClient("did:test:did", List.of(OIDC4VPIssuerEndpointTest.getCredential("PacketDeliveryService", Format.LDP_VC), OIDC4VPIssuerEndpointTest.getCredential("SomethingFancy", Format.LDP_VC)), null, null, null, null),
+                        new OID4VPClient("did:test:did", List.of(OID4VPIssuerEndpointTest.getCredential("PacketDeliveryService", Format.LDP_VC), OID4VPIssuerEndpointTest.getCredential("SomethingFancy", Format.LDP_VC)), null, null, null, null),
                         new ExpectedResult(getClientRepresentation("did:test:did", null, null,
                                 Map.of("vctypes_PacketDeliveryService", Format.LDP_VC.toString(),
                                         "vctypes_SomethingFancy", Format.LDP_VC.toString())),
                                 "A valid client should have been created.")),
-                Arguments.of(new OIDC4VPClient("did:test:did", List.of(OIDC4VPIssuerEndpointTest.getCredential("PacketDeliveryService", Format.LDP_VC), OIDC4VPIssuerEndpointTest.getCredential("SomethingFancy", Format.LDP_VC)), null, null, null,
+                Arguments.of(new OID4VPClient("did:test:did", List.of(OID4VPIssuerEndpointTest.getCredential("PacketDeliveryService", Format.LDP_VC), OID4VPIssuerEndpointTest.getCredential("SomethingFancy", Format.LDP_VC)), null, null, null,
                                 Map.of("additional", "claim", "another", "one")),
                         new ExpectedResult(getClientRepresentation("did:test:did", null, null,
                                 Map.of(
@@ -81,7 +81,7 @@ public class OIDC4VPClientRegistrationProviderTest {
                                         "vctypes_PacketDeliveryService", Format.LDP_VC.toString(),
                                         "vctypes_SomethingFancy", Format.LDP_VC.toString())),
                                 "A valid client should have been created.")),
-                Arguments.of(new OIDC4VPClient("did:test:did", List.of(OIDC4VPIssuerEndpointTest.getCredential("PacketDeliveryService", Format.LDP_VC), OIDC4VPIssuerEndpointTest.getCredential("SomethingFancy", Format.LDP_VC)), null, null,
+                Arguments.of(new OID4VPClient("did:test:did", List.of(OID4VPIssuerEndpointTest.getCredential("PacketDeliveryService", Format.LDP_VC), OID4VPIssuerEndpointTest.getCredential("SomethingFancy", Format.LDP_VC)), null, null,
                                 1000l,
                                 Map.of("additional", "claim", "another", "one")),
                         new ExpectedResult(getClientRepresentation("did:test:did", null, null,
@@ -115,7 +115,7 @@ public class OIDC4VPClientRegistrationProviderTest {
         ClientRepresentation cr = new ClientRepresentation();
         cr.setClientId(clientId);
         cr.setId(clientId);
-        cr.setProtocol(OIDC4VPClientRegistrationProviderFactory.PROTOCOL_ID);
+        cr.setProtocol(OID4VPClientRegistrationProviderFactory.PROTOCOL_ID);
         cr.setAttributes(additionalClaims);
         cr.setDescription(description);
         cr.setName(name);

@@ -14,11 +14,11 @@ import org.keycloak.models.RealmModel;
 import org.keycloak.models.utils.KeycloakModelUtils;
 import org.keycloak.protocol.LoginProtocol;
 import org.keycloak.protocol.LoginProtocolFactory;
-import org.keycloak.protocol.oid4vc.issuance.OIDC4VPIssuerEndpoint;
+import org.keycloak.protocol.oid4vc.issuance.OID4VPIssuerEndpoint;
 import org.keycloak.protocol.oid4vc.issuance.VCIssuerException;
-import org.keycloak.protocol.oid4vc.issuance.mappers.OIDC4VPSubjectIdMapper;
-import org.keycloak.protocol.oid4vc.issuance.mappers.OIDC4VPTargetRoleMapper;
-import org.keycloak.protocol.oid4vc.issuance.mappers.OIDC4VPUserAttributeMapper;
+import org.keycloak.protocol.oid4vc.issuance.mappers.OID4VPSubjectIdMapper;
+import org.keycloak.protocol.oid4vc.issuance.mappers.OID4VPTargetRoleMapper;
+import org.keycloak.protocol.oid4vc.issuance.mappers.OID4VPUserAttributeMapper;
 import org.keycloak.protocol.oid4vc.issuance.signing.*;
 import org.keycloak.protocol.oid4vc.model.Format;
 import org.keycloak.representations.idm.ClientRepresentation;
@@ -30,13 +30,15 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * This factory is required to get the capability of creating {@link OIDC4VPClientModel} using the SIOP-2 protocol.
+ * This factory is required to get the capability of creating {@link OID4VPClientModel}.
  * Clients cannot be created without a matching protocol. We do not support logging into keycloak with it, nor any other
  * "native" functionality, thus we don't implement anything beside the
+ *
+ * @author <a href="https://github.com/wistefan">Stefan Wiedemann</a>
  */
-public class OIDC4VPLoginProtocolFactory implements LoginProtocolFactory {
+public class OID4VPLoginProtocolFactory implements LoginProtocolFactory {
 
-    private static final Logger LOGGER = Logger.getLogger(OIDC4VPLoginProtocolFactory.class);
+    private static final Logger LOGGER = Logger.getLogger(OID4VPLoginProtocolFactory.class);
 
     public static final String PROTOCOL_ID = "oidc4vp";
 
@@ -60,17 +62,17 @@ public class OIDC4VPLoginProtocolFactory implements LoginProtocolFactory {
             throw new RuntimeException(e);
         }
         builtins.put(CLIENT_ROLES_MAPPER,
-                OIDC4VPTargetRoleMapper.create("id", "client roles"));
+                OID4VPTargetRoleMapper.create("id", "client roles"));
         builtins.put(SUBJECT_ID_MAPPER,
-                OIDC4VPSubjectIdMapper.create("subject id", "id"));
+                OID4VPSubjectIdMapper.create("subject id", "id"));
         builtins.put(USERNAME_MAPPER,
-                OIDC4VPUserAttributeMapper.create(USERNAME_MAPPER, "username", "username", false));
+                OID4VPUserAttributeMapper.create(USERNAME_MAPPER, "username", "username", false));
         builtins.put(EMAIL_MAPPER,
-                OIDC4VPUserAttributeMapper.create(EMAIL_MAPPER, "email", "email", false));
+                OID4VPUserAttributeMapper.create(EMAIL_MAPPER, "email", "email", false));
         builtins.put(FIRST_NAME_MAPPER,
-                OIDC4VPUserAttributeMapper.create(FIRST_NAME_MAPPER, "firstName", "firstName", false));
+                OID4VPUserAttributeMapper.create(FIRST_NAME_MAPPER, "firstName", "firstName", false));
         builtins.put(LAST_NAME_MAPPER,
-                OIDC4VPUserAttributeMapper.create(LAST_NAME_MAPPER, "lastName", "familyName", false));
+                OID4VPUserAttributeMapper.create(LAST_NAME_MAPPER, "lastName", "familyName", false));
     }
 
     @Override
@@ -90,10 +92,9 @@ public class OIDC4VPLoginProtocolFactory implements LoginProtocolFactory {
 
     @Override
     public Object createProtocolEndpoint(KeycloakSession keycloakSession, EventBuilder event) {
-
         LOGGER.info("Create vc-issuer protocol endpoint");
 
-        Map<Format, VCSigningService> signingServices = new HashMap<>();
+        Map<Format, VerifiableCredentialsSigningService> signingServices = new HashMap<>();
 
         // handle ldp-proofs
         boolean vcmdEnabled = Optional.ofNullable(keycloakSession.getContext().getRealm().getAttribute("vcdmEnabled")).map(Boolean::valueOf).orElse(false);
@@ -111,7 +112,7 @@ public class OIDC4VPLoginProtocolFactory implements LoginProtocolFactory {
             }
             try {
                 signingServices.put(Format.LDP_VC, new LDSigningService(
-                        new FileBasedKeyLoader(vcmdKeyPath.get()),
+                        keycloakSession,
                         vcmdKeyId.get(),
                         clock,
                         ldpProofType.get(),
@@ -138,7 +139,7 @@ public class OIDC4VPLoginProtocolFactory implements LoginProtocolFactory {
             }
             try {
                 signingServices.put(Format.JWT_VC, new JwtSigningService(
-                        new FileBasedKeyLoader(jwtVcKeyPath.get()),
+                        keycloakSession,
                         jwtVcKeyId.get(),
                         clock,
                         jwtVcSignatureType.get()));
@@ -167,7 +168,7 @@ public class OIDC4VPLoginProtocolFactory implements LoginProtocolFactory {
             }
             try {
                 signingServices.put(Format.SD_JWT_VC, new SdJwtSigningService(
-                        new FileBasedKeyLoader(sdJwtVcKeyPath.get()),
+                        keycloakSession,
                         sdJwtVcKeyId.get(),
                         clock,
                         sdJwtVcSignatureType.get(),
@@ -184,7 +185,7 @@ public class OIDC4VPLoginProtocolFactory implements LoginProtocolFactory {
                 .orElseThrow(() -> new VCIssuerException("No issuerDid  configured."));
 
 
-        return new OIDC4VPIssuerEndpoint(
+        return new OID4VPIssuerEndpoint(
                 keycloakSession,
                 issuerDid,
                 signingServices,
@@ -216,12 +217,12 @@ public class OIDC4VPLoginProtocolFactory implements LoginProtocolFactory {
     @Override
     public void setupClientDefaults(ClientRepresentation rep, ClientModel newClient) {
         // validate before setting the defaults
-        OIDC4VPClientRegistrationProvider.validate(rep);
+        OID4VPClientRegistrationProvider.validate(rep);
     }
 
     @Override
     public LoginProtocol create(KeycloakSession session) {
-        return new OIDC4VPLoginProtocol(session);
+        return new OID4VPLoginProtocol(session);
     }
 
     @Override

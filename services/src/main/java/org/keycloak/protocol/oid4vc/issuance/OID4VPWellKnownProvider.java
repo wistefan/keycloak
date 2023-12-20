@@ -2,25 +2,27 @@ package org.keycloak.protocol.oid4vc.issuance;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.keycloak.models.ClientModel;
 import org.keycloak.models.KeycloakSession;
-import org.keycloak.protocol.oid4vc.OIDC4VPAbstractWellKnownProvider;
+import org.keycloak.protocol.oid4vc.OID4VPAbstractWellKnownProvider;
 import org.keycloak.protocol.oidc.OIDCWellKnownProvider;
-import org.keycloak.protocol.oid4vc.model.SupportedCredential;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
-import static org.keycloak.protocol.oid4vc.OIDC4VPClientRegistrationProvider.VC_TYPES_PREFIX;
-import static org.keycloak.protocol.oid4vc.issuance.OIDC4VPIssuerEndpoint.GRANT_TYPE_PRE_AUTHORIZED_CODE;
+import static org.keycloak.protocol.oid4vc.issuance.OID4VPIssuerEndpoint.GRANT_TYPE_PRE_AUTHORIZED_CODE;
 
-public class OIDC4VPWellKnownProvider extends OIDC4VPAbstractWellKnownProvider {
+/**
+ * Extension of the OIDC Wellknown Provider to also support the pre-authorized grant type
+ *
+ * TODO: might be removed in the future
+ *
+ * @author <a href="https://github.com/wistefan">Stefan Wiedemann</a>
+ */
+public class OID4VPWellKnownProvider extends OID4VPAbstractWellKnownProvider {
 
-    public OIDC4VPWellKnownProvider(KeycloakSession keycloakSession, ObjectMapper objectMapper) {
+    public OID4VPWellKnownProvider(KeycloakSession keycloakSession, ObjectMapper objectMapper) {
         super(keycloakSession, objectMapper);
     }
 

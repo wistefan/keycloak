@@ -32,13 +32,18 @@ import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
 import java.util.Optional;
 
+/**
+ * Implementation of a LD-Crypto Suite for Ed25519Signature2018
+ * {@see https://w3c-ccg.github.io/ld-cryptosuite-registry/#ed25519signature2018}
+ *
+ * @author <a href="https://github.com/wistefan">Stefan Wiedemann</a>
+ */
 public class Ed255192018Suite implements SecuritySuite {
 
     private final ObjectMapper objectMapper;
-
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private static final String CANONICALIZATION_ALGORITHM = "https://w3id.org/security#URDNA2015";
     private static final String DIGEST_ALGORITHM = "http://w3id.org/digests#sha256";
@@ -102,28 +107,21 @@ public class Ed255192018Suite implements SecuritySuite {
     }
 
     @Override
-    public byte[] sign(byte[] hashData, String key) {
+    public byte[] sign(byte[] hashData, PrivateKey key) {
         Ed25519Signer signer = new Ed25519Signer();
-        signer.init(true, parseKey(key));
+        signer.init(true, toKeyParameter(key));
         signer.update(hashData, 0, hashData.length);
         return signer.generateSignature();
     }
 
 
-    private static AsymmetricKeyParameter parseKey(String key) {
-        PEMParser pemReaderPrivate = new PEMParser(new StringReader(key));
+    private static AsymmetricKeyParameter toKeyParameter(PrivateKey key) {
         try {
-            var pemObject = pemReaderPrivate.readObject();
-            if (pemObject instanceof PEMKeyPair pkp) {
-                return PrivateKeyFactory.createKey(pkp.getPrivateKeyInfo());
-            } else if (pemObject instanceof PrivateKeyInfo pki) {
-                return PrivateKeyFactory.createKey(pki);
-            } else {
-                throw new RuntimeException();
-            }
+            return PrivateKeyFactory.createKey(key.getEncoded());
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new SigningServiceException("Was not able to get the private key parameter.", e);
         }
+
     }
 
     @Override

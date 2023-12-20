@@ -18,7 +18,7 @@ import org.keycloak.TokenVerifier;
 import org.keycloak.common.VerificationException;
 import org.keycloak.models.*;
 import org.keycloak.protocol.oid4vc.ExpectedResult;
-import org.keycloak.protocol.oid4vc.OIDC4VPClientRegistrationProviderFactory;
+import org.keycloak.protocol.oid4vc.OID4VPClientRegistrationProviderFactory;
 import org.keycloak.protocol.oid4vc.issuance.mappers.*;
 import org.keycloak.protocol.oid4vc.issuance.signing.FileBasedKeyLoader;
 import org.keycloak.protocol.oid4vc.issuance.signing.JwtSigningService;
@@ -42,13 +42,13 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
+import static org.keycloak.protocol.oid4vc.issuance.signing.SigningServiceTest.*;
+import static org.mockito.Matchers.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 
-public class OIDC4VPIssuerEndpointTest {
+public class OID4VPIssuerEndpointTest {
 
     private static final String ISSUER_DID = "did:key:test";
 
@@ -56,28 +56,38 @@ public class OIDC4VPIssuerEndpointTest {
             .configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true)
             .configure(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY, true).build();
 
-    private KeycloakSession keycloakSession;
+    private KeycloakSession keycloakSession = mock(KeycloakSession.class);
+    ;
     private AppAuthManager.BearerTokenAuthenticator bearerTokenAuthenticator;
 
-    private OIDC4VPIssuerEndpoint testEndpoint;
+    private OID4VPIssuerEndpoint testEndpoint;
 
     private Clock fixedClock = Clock.fixed(Instant.parse("2022-11-10T17:11:09.00Z"),
             ZoneId.of("Europe/Paris"));
 
+    private KeycloakContext context;
+
+
     @BeforeEach
-    public void setUp() throws NoSuchFieldException {
-        URL ecKeyUrl = getClass().getClassLoader().getResource("eckey.tls");
-        URL rsaKeyUrl = getClass().getClassLoader().getResource("key.tls");
+    public void setUp() {
 
         Security.addProvider(new BouncyCastleProvider());
-
-        var ldpSigningService = new LDSigningService(new FileBasedKeyLoader(ecKeyUrl.getPath()), "my-key-id", fixedClock, "Ed25519Signature2018", OBJECT_MAPPER);
-        var jwtSigningService = new JwtSigningService(new FileBasedKeyLoader(rsaKeyUrl.getPath()), "my-key-id", fixedClock, "RS256");
-        var sdJwtSigningService = new SdJwtSigningService(new FileBasedKeyLoader(rsaKeyUrl.getPath()), "my-key-id", fixedClock, "RS256", OBJECT_MAPPER, 3);
-
         this.keycloakSession = mock(KeycloakSession.class);
+        this.context = mock(KeycloakContext.class);
+        KeyManager keyManager = mock(KeyManager.class);
+        RealmModel realmModel = mock(RealmModel.class);
+        when(keycloakSession.keys()).thenReturn(keyManager);
+        when(keycloakSession.getContext()).thenReturn(context);
+        when(context.getRealm()).thenReturn(realmModel);
+        when(keyManager.getKey(any(), eq("ec-key"), any(), anyString())).thenReturn(getEd25519Key("ec-key"));
+        when(keyManager.getKey(any(), eq("rsa-key"), any(), anyString())).thenReturn(getRsaKey("rsa-key"));
+        var ldpSigningService = new LDSigningService(keycloakSession, "ec-key", fixedClock, "Ed25519Signature2018", OBJECT_MAPPER);
+        var jwtSigningService = new JwtSigningService(keycloakSession, "rsa-key", fixedClock, "RS256");
+        var sdJwtSigningService = new SdJwtSigningService(keycloakSession, "rsa-key", fixedClock, "RS256", OBJECT_MAPPER, 3);
+
+
         this.bearerTokenAuthenticator = mock(AppAuthManager.BearerTokenAuthenticator.class);
-        this.testEndpoint = new OIDC4VPIssuerEndpoint(
+        this.testEndpoint = new OID4VPIssuerEndpoint(
                 keycloakSession,
                 ISSUER_DID,
                 Map.of(Format.LDP_VC, ldpSigningService, Format.JWT_VC, jwtSigningService, Format.SD_JWT_VC, sdJwtSigningService),
@@ -86,7 +96,6 @@ public class OIDC4VPIssuerEndpointTest {
 
     @Test
     public void testGetVCUnauthorized() {
-        KeycloakContext context = mock(KeycloakContext.class);
         RealmModel realmModel = mock(RealmModel.class);
         when(keycloakSession.getContext()).thenReturn(context);
         when(context.getRealm()).thenReturn(realmModel);
@@ -111,7 +120,6 @@ public class OIDC4VPIssuerEndpointTest {
                                     ExpectedResult<Set<SupportedCredential>> ignored) {
         AuthenticationManager.AuthResult authResult = mock(AuthenticationManager.AuthResult.class);
         UserModel userModel = mock(UserModel.class);
-        KeycloakContext context = mock(KeycloakContext.class);
         RealmModel realmModel = mock(RealmModel.class);
         ClientProvider clientProvider = mock(ClientProvider.class);
 
@@ -143,7 +151,6 @@ public class OIDC4VPIssuerEndpointTest {
         List<ClientModel> clientModels = clientModelStream.toList();
 
         AuthenticationManager.AuthResult authResult = mock(AuthenticationManager.AuthResult.class);
-        KeycloakContext context = mock(KeycloakContext.class);
         RealmModel realmModel = mock(RealmModel.class);
         ClientProvider clientProvider = mock(ClientProvider.class);
 
@@ -225,7 +232,6 @@ public class OIDC4VPIssuerEndpointTest {
         List<ClientModel> clientModels = clientModelStream.toList();
 
         AuthenticationManager.AuthResult authResult = mock(AuthenticationManager.AuthResult.class);
-        KeycloakContext context = mock(KeycloakContext.class);
         RealmModel realmModel = mock(RealmModel.class);
         ClientProvider clientProvider = mock(ClientProvider.class);
         UserSessionModel userSessionModel = mock(UserSessionModel.class);
@@ -813,67 +819,67 @@ public class OIDC4VPIssuerEndpointTest {
         });
         List<ProtocolMapperModel> mapperModels = new ArrayList<>();
         ProtocolMapperModel idMapperModel = mock(ProtocolMapperModel.class);
-        when(idMapperModel.getProtocolMapper()).thenReturn(OIDC4VPSubjectIdMapper.MAPPER_ID);
-        when(idMapperModel.getProtocol()).thenReturn(OIDC4VPClientRegistrationProviderFactory.PROTOCOL_ID);
-        when(idMapperModel.getConfig()).thenReturn(Map.of(OIDC4VPSubjectIdMapper.ID_KEY, "urn:uuid:dummy-id"));
+        when(idMapperModel.getProtocolMapper()).thenReturn(OID4VPSubjectIdMapper.MAPPER_ID);
+        when(idMapperModel.getProtocol()).thenReturn(OID4VPClientRegistrationProviderFactory.PROTOCOL_ID);
+        when(idMapperModel.getConfig()).thenReturn(Map.of(OID4VPSubjectIdMapper.ID_KEY, "urn:uuid:dummy-id"));
         mapperModels.add(idMapperModel);
 
         if (clientId != null) {
             ProtocolMapperModel roleMapperModel = mock(ProtocolMapperModel.class);
-            when(roleMapperModel.getProtocol()).thenReturn(OIDC4VPClientRegistrationProviderFactory.PROTOCOL_ID);
-            when(roleMapperModel.getProtocolMapper()).thenReturn(OIDC4VPTargetRoleMapper.MAPPER_ID);
+            when(roleMapperModel.getProtocol()).thenReturn(OID4VPClientRegistrationProviderFactory.PROTOCOL_ID);
+            when(roleMapperModel.getProtocolMapper()).thenReturn(OID4VPTargetRoleMapper.MAPPER_ID);
             when(roleMapperModel.getConfig()).thenReturn(
-                    Map.of(OIDC4VPTargetRoleMapper.SUBJECT_PROPERTY_CONFIG_KEY, "roles",
-                            OIDC4VPTargetRoleMapper.CLIENT_CONFIG_KEY, clientId));
+                    Map.of(OID4VPTargetRoleMapper.SUBJECT_PROPERTY_CONFIG_KEY, "roles",
+                            OID4VPTargetRoleMapper.CLIENT_CONFIG_KEY, clientId));
             mapperModels.add(roleMapperModel);
         }
 
         if (types != null && enableTypeMapper) {
             types.forEach(t -> {
                 ProtocolMapperModel typeMapper = mock(ProtocolMapperModel.class);
-                when(typeMapper.getProtocolMapper()).thenReturn(OIDC4VPTypeMapper.MAPPER_ID);
-                when(typeMapper.getProtocol()).thenReturn(OIDC4VPClientRegistrationProviderFactory.PROTOCOL_ID);
+                when(typeMapper.getProtocolMapper()).thenReturn(OID4VPTypeMapper.MAPPER_ID);
+                when(typeMapper.getProtocol()).thenReturn(OID4VPClientRegistrationProviderFactory.PROTOCOL_ID);
                 when(typeMapper.getConfig()).thenReturn(
-                        Map.of(OIDC4VPTypeMapper.TYPE_KEY, t));
+                        Map.of(OID4VPTypeMapper.TYPE_KEY, t));
                 mapperModels.add(typeMapper);
             });
         }
         ProtocolMapperModel familyNameMapper = mock(ProtocolMapperModel.class);
-        when(familyNameMapper.getProtocolMapper()).thenReturn(OIDC4VPUserAttributeMapper.MAPPER_ID);
-        when(familyNameMapper.getProtocol()).thenReturn(OIDC4VPClientRegistrationProviderFactory.PROTOCOL_ID);
+        when(familyNameMapper.getProtocolMapper()).thenReturn(OID4VPUserAttributeMapper.MAPPER_ID);
+        when(familyNameMapper.getProtocol()).thenReturn(OID4VPClientRegistrationProviderFactory.PROTOCOL_ID);
         when(familyNameMapper.getConfig()).thenReturn(
-                Map.of(OIDC4VPUserAttributeMapper.USER_ATTRIBUTE_KEY, "familyName",
-                        OIDC4VPUserAttributeMapper.SUBJECT_PROPERTY_CONFIG_KEY, "familyName",
-                        OIDC4VPUserAttributeMapper.AGGREGATE_ATTRIBUTES_KEY, "false"));
+                Map.of(OID4VPUserAttributeMapper.USER_ATTRIBUTE_KEY, "familyName",
+                        OID4VPUserAttributeMapper.SUBJECT_PROPERTY_CONFIG_KEY, "familyName",
+                        OID4VPUserAttributeMapper.AGGREGATE_ATTRIBUTES_KEY, "false"));
         mapperModels.add(familyNameMapper);
 
         ProtocolMapperModel firstNameMapper = mock(ProtocolMapperModel.class);
-        when(firstNameMapper.getProtocolMapper()).thenReturn(OIDC4VPUserAttributeMapper.MAPPER_ID);
-        when(firstNameMapper.getProtocol()).thenReturn(OIDC4VPClientRegistrationProviderFactory.PROTOCOL_ID);
-        when(firstNameMapper.getConfig()).thenReturn(Map.of(OIDC4VPUserAttributeMapper.USER_ATTRIBUTE_KEY, "firstName",
-                OIDC4VPUserAttributeMapper.SUBJECT_PROPERTY_CONFIG_KEY, "firstName",
-                OIDC4VPUserAttributeMapper.AGGREGATE_ATTRIBUTES_KEY, "false"));
+        when(firstNameMapper.getProtocolMapper()).thenReturn(OID4VPUserAttributeMapper.MAPPER_ID);
+        when(firstNameMapper.getProtocol()).thenReturn(OID4VPClientRegistrationProviderFactory.PROTOCOL_ID);
+        when(firstNameMapper.getConfig()).thenReturn(Map.of(OID4VPUserAttributeMapper.USER_ATTRIBUTE_KEY, "firstName",
+                OID4VPUserAttributeMapper.SUBJECT_PROPERTY_CONFIG_KEY, "firstName",
+                OID4VPUserAttributeMapper.AGGREGATE_ATTRIBUTES_KEY, "false"));
         mapperModels.add(firstNameMapper);
 
         ProtocolMapperModel emailMapper = mock(ProtocolMapperModel.class);
-        when(emailMapper.getProtocolMapper()).thenReturn(OIDC4VPUserAttributeMapper.MAPPER_ID);
-        when(emailMapper.getProtocol()).thenReturn(OIDC4VPClientRegistrationProviderFactory.PROTOCOL_ID);
-        when(emailMapper.getConfig()).thenReturn(Map.of(OIDC4VPUserAttributeMapper.USER_ATTRIBUTE_KEY, "email",
-                OIDC4VPUserAttributeMapper.SUBJECT_PROPERTY_CONFIG_KEY, "email",
-                OIDC4VPUserAttributeMapper.AGGREGATE_ATTRIBUTES_KEY, "false"));
+        when(emailMapper.getProtocolMapper()).thenReturn(OID4VPUserAttributeMapper.MAPPER_ID);
+        when(emailMapper.getProtocol()).thenReturn(OID4VPClientRegistrationProviderFactory.PROTOCOL_ID);
+        when(emailMapper.getConfig()).thenReturn(Map.of(OID4VPUserAttributeMapper.USER_ATTRIBUTE_KEY, "email",
+                OID4VPUserAttributeMapper.SUBJECT_PROPERTY_CONFIG_KEY, "email",
+                OID4VPUserAttributeMapper.AGGREGATE_ATTRIBUTES_KEY, "false"));
         mapperModels.add(emailMapper);
 
         additionalClaims.entrySet().forEach(entry -> {
             ProtocolMapperModel claimMapper = mock(ProtocolMapperModel.class);
-            when(claimMapper.getProtocolMapper()).thenReturn(OIDC4VPStaticClaimMapper.MAPPER_ID);
-            when(claimMapper.getProtocol()).thenReturn(OIDC4VPClientRegistrationProviderFactory.PROTOCOL_ID);
-            when(claimMapper.getConfig()).thenReturn(Map.of(OIDC4VPStaticClaimMapper.STATIC_CLAIM_KEY, entry.getValue(),
-                    OIDC4VPStaticClaimMapper.SUBJECT_PROPERTY_CONFIG_KEY, entry.getKey()));
+            when(claimMapper.getProtocolMapper()).thenReturn(OID4VPStaticClaimMapper.MAPPER_ID);
+            when(claimMapper.getProtocol()).thenReturn(OID4VPClientRegistrationProviderFactory.PROTOCOL_ID);
+            when(claimMapper.getConfig()).thenReturn(Map.of(OID4VPStaticClaimMapper.STATIC_CLAIM_KEY, entry.getValue(),
+                    OID4VPStaticClaimMapper.SUBJECT_PROPERTY_CONFIG_KEY, entry.getKey()));
             mapperModels.add(claimMapper);
         });
 
         ClientModel clientA = mock(ClientModel.class);
-        when(clientA.getProtocol()).thenReturn(OIDC4VPClientRegistrationProviderFactory.PROTOCOL_ID);
+        when(clientA.getProtocol()).thenReturn(OID4VPClientRegistrationProviderFactory.PROTOCOL_ID);
         when(clientA.getClientId()).thenReturn(clientId);
         when(clientA.getAttributes()).thenReturn(attributes);
         when(clientA.getProtocolMappersStream()).thenReturn(mapperModels.stream());

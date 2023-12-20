@@ -1,5 +1,11 @@
 package org.keycloak.protocol.oid4vc.issuance.signing.vcdm;
 
+/**
+ * Enum containing the w3c-registered Signature Suites
+ * {@see https://w3c-ccg.github.io/ld-cryptosuite-registry}
+ *
+ * @author <a href="https://github.com/wistefan">Stefan Wiedemann</a>
+ */
 public enum LDSignatureType {
 
 	ED_25519_SIGNATURE_2018("Ed25519Signature2018"),

@@ -4,6 +4,8 @@ import org.keycloak.models.ClientModel;
 
 /**
  * Empty interface to fulfill integration into the client-registration.
+ *
+ * @author <a href="https://github.com/wistefan">Stefan Wiedemann</a>
  */
-public interface OIDC4VPClientModel extends ClientModel {
+public interface OID4VPClientModel extends ClientModel {
 }

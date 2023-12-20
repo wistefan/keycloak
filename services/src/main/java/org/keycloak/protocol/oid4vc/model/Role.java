@@ -3,6 +3,11 @@ package org.keycloak.protocol.oid4vc.model;
 import java.util.Objects;
 import java.util.Set;
 
+/**
+ * Pojo representation of a role to be added by the {@link org.keycloak.protocol.oid4vc.issuance.mappers.OID4VPTargetRoleMapper}
+ *
+ * @author <a href="https://github.com/wistefan">Stefan Wiedemann</a>
+ */
 public class Role {
 
     private Set<String> names;

@@ -7,6 +7,11 @@ import org.keycloak.crypto.SignatureSignerContext;
 import java.security.PrivateKey;
 import java.security.Signature;
 
+/**
+ * Implementation of the {@see SignatureSignerContext} to support EdDSA Signatures
+ *
+ * @author <a href="https://github.com/wistefan">Stefan Wiedemann</a>
+ */
 public class EdDSASignatureSignerContext implements SignatureSignerContext {
 
     public static final String ED_25519 = "Ed25519";

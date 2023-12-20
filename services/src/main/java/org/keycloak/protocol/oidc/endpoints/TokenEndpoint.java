@@ -125,7 +125,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
-import static org.keycloak.protocol.oid4vc.issuance.OIDC4VPIssuerEndpoint.GRANT_TYPE_PRE_AUTHORIZED_CODE;
+import static org.keycloak.protocol.oid4vc.issuance.OID4VPIssuerEndpoint.GRANT_TYPE_PRE_AUTHORIZED_CODE;
 import static org.keycloak.utils.LockObjectsForModification.lockUserSessionsForModification;
 
 /**
