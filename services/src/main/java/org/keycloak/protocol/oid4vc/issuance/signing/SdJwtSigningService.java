@@ -11,6 +11,7 @@ import org.keycloak.protocol.oid4vc.model.VerifiableCredential;
 import org.keycloak.protocol.oid4vc.model.sd_jwt_vc.*;
 import org.keycloak.representations.JsonWebToken;
 
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.time.Clock;
@@ -82,7 +83,16 @@ public class SdJwtSigningService extends JwtSigningService {
 
         JsonWebToken jsonWebToken = new JsonWebToken();
         Optional.ofNullable(verifiableCredential.getExpirationDate()).ifPresent(d -> jsonWebToken.exp(d.getTime()));
-        Optional.ofNullable(verifiableCredential.getCredentialSubject().getId()).ifPresent(jsonWebToken::setSubject);
+        var subjectId = Optional.ofNullable(verifiableCredential.getId());
+        if (subjectId.isEmpty()) {
+            Object idObject = Optional.ofNullable(verifiableCredential.getAdditionalProperties().get("id"));
+            if (idObject instanceof URI uriId) {
+                subjectId = Optional.of(uriId);
+            } else if (idObject instanceof String stringId) {
+                subjectId = Optional.of(URI.create(stringId));
+            }
+        }
+        subjectId.ifPresent(id -> jsonWebToken.subject(id.toString()));
         jsonWebToken.issuer(verifiableCredential.getIssuer().toString());
         jsonWebToken.nbf(clock.instant().getEpochSecond());
         jsonWebToken.iat(clock.instant().getEpochSecond());
