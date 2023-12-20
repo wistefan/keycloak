@@ -65,8 +65,16 @@ public class JwtSigningService extends SigningService<String> {
         jsonWebToken.iat(clock.instant().getEpochSecond());
         var credentialId = Optional.ofNullable(verifiableCredential.getId()).orElse(URI.create(String.format(ID_TEMPLATE, UUID.randomUUID())));
         jsonWebToken.id(credentialId.toString());
-
-        jsonWebToken.subject(verifiableCredential.getCredentialSubject().getId());
+        var subjectId = Optional.ofNullable(verifiableCredential.getId());
+        if (subjectId.isEmpty()) {
+            Object idObject = Optional.ofNullable(verifiableCredential.getAdditionalProperties().get("id"));
+            if (idObject instanceof URI uriId) {
+                subjectId = Optional.of(uriId);
+            } else if (idObject instanceof String stringId) {
+                subjectId = Optional.of(URI.create(stringId));
+            }
+        }
+        subjectId.ifPresent(id -> jsonWebToken.subject(id.toString()));
         jsonWebToken.setOtherClaims("vc", verifiableCredential);
         return signToken(jsonWebToken, "JWT");
     }
