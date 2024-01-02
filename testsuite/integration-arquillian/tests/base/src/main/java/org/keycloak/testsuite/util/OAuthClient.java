@@ -446,7 +446,7 @@ public class OAuthClient {
             e.printStackTrace();
         }
 
-        // load the trustore
+        // load the truststore
         KeyStore truststore = null;
         try {
             truststore = KeystoreUtil.loadKeyStore(trustStorePath, trustStorePassword);
@@ -970,6 +970,10 @@ public class OAuthClient {
             parameters.add(new BasicNameValuePair(OAuth2Constants.CLIENT_ID, clientId));
         }
 
+        if (dpopProof != null) {
+            post.addHeader("DPoP", dpopProof);
+        }
+
         UrlEncodedFormEntity formEntity;
         try {
             formEntity = new UrlEncodedFormEntity(parameters, "UTF-8");
@@ -1002,6 +1006,9 @@ public class OAuthClient {
         }
         if (refreshToken != null) {
             parameters.add(new BasicNameValuePair(OAuth2Constants.REFRESH_TOKEN, refreshToken));
+        }
+        if (scope != null) {
+            parameters.add(new BasicNameValuePair(OAuth2Constants.SCOPE, scope));
         }
         if (clientId != null && password != null) {
             String authorization = BasicAuthHelper.createHeader(clientId, password);
@@ -1394,6 +1401,9 @@ public class OAuthClient {
         int index = driver.getCurrentUrl().indexOf('?');
         if (index == -1) {
             index = driver.getCurrentUrl().indexOf('#');
+            if (index == -1) {
+                index = driver.getCurrentUrl().length();
+            }
         }
         return driver.getCurrentUrl().substring(0, index);
     }
@@ -1408,7 +1418,7 @@ public class OAuthClient {
 
     public Map<String, String> getCurrentQuery() {
         Map<String, String> m = new HashMap<>();
-        List<NameValuePair> pairs = URLEncodedUtils.parse(getCurrentUri(), "UTF-8");
+        List<NameValuePair> pairs = URLEncodedUtils.parse(getCurrentUri(), StandardCharsets.UTF_8);
         for (NameValuePair p : pairs) {
             m.put(p.getName(), p.getValue());
         }

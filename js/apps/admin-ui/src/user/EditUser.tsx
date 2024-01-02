@@ -1,19 +1,26 @@
-import type { UserProfileMetadata } from "@keycloak/keycloak-admin-client/lib/defs//userProfileMetadata";
+import type {
+  UserProfileMetadata,
+  UserProfileConfig,
+} from "@keycloak/keycloak-admin-client/lib/defs/userProfileMetadata";
 import RealmRepresentation from "@keycloak/keycloak-admin-client/lib/defs/realmRepresentation";
-import type UserRepresentation from "@keycloak/keycloak-admin-client/lib/defs/userRepresentation";
 import {
   AlertVariant,
   ButtonVariant,
   DropdownItem,
+  Label,
   PageSection,
   Tab,
   TabTitleText,
+  Tooltip,
 } from "@patternfly/react-core";
+import { InfoCircleIcon } from "@patternfly/react-icons";
+import { TFunction } from "i18next";
 import { useState } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { isUserProfileError, setUserProfileServerError } from "ui-shared";
+
 import { adminClient } from "../admin-client";
 import { useAlerts } from "../components/alert/Alerts";
 import { useConfirmDialog } from "../components/confirm-dialog/ConfirmDialog";
@@ -41,10 +48,13 @@ import {
   UserFormFields,
   toUserFormFields,
   toUserRepresentation,
+  filterManagedAttributes,
+  UIUserRepresentation,
 } from "./form-state";
 import { UserParams, UserTab, toUser } from "./routes/User";
 import { toUsers } from "./routes/Users";
-
+import { isLightweightUser } from "./utils";
+import { getUnmanagedAttributes } from "../components/users/resource";
 import "./user-section.css";
 
 export default function EditUser() {
@@ -57,12 +67,16 @@ export default function EditUser() {
   const isFeatureEnabled = useIsFeatureEnabled();
   const form = useForm<UserFormFields>({ mode: "onChange" });
   const [realm, setRealm] = useState<RealmRepresentation>();
-  const [user, setUser] = useState<UserRepresentation>();
+  const [user, setUser] = useState<UIUserRepresentation>();
   const [bruteForced, setBruteForced] = useState<BruteForced>();
+  const [isUnmanagedAttributesEnabled, setUnmanagedAttributesEnabled] =
+    useState<boolean>();
   const [userProfileMetadata, setUserProfileMetadata] =
     useState<UserProfileMetadata>();
   const [refreshCount, setRefreshCount] = useState(0);
   const refresh = () => setRefreshCount((count) => count + 1);
+  const lightweightUser = isLightweightUser(user?.id);
+  const [upConfig, setUpConfig] = useState<UserProfileConfig>();
 
   const toTab = (tab: UserTab) =>
     toUser({
@@ -86,21 +100,18 @@ export default function EditUser() {
     async () =>
       Promise.all([
         adminClient.realms.findOne({ realm: realmName }),
-        adminClient.users.findOne({ id: id!, userProfileMetadata: true }),
+        adminClient.users.findOne({
+          id: id!,
+          userProfileMetadata: true,
+        }) as UIUserRepresentation,
         adminClient.attackDetection.findOne({ id: id! }),
+        getUnmanagedAttributes(id!),
+        adminClient.users.getProfile({ realm: realmName }),
       ]),
-    ([realm, user, attackDetection]) => {
+    ([realm, user, attackDetection, unmanagedAttributes, upConfig]) => {
       if (!user || !realm || !attackDetection) {
         throw new Error(t("notFound"));
       }
-
-      setRealm(realm);
-      setUser(user);
-
-      const isBruteForceProtected = realm.bruteForceProtected;
-      const isLocked = isBruteForceProtected && attackDetection.disabled;
-
-      setBruteForced({ isBruteForceProtected, isLocked });
 
       const isUserProfileEnabled =
         isFeatureEnabled(Feature.DeclarativeUserProfile) &&
@@ -109,6 +120,30 @@ export default function EditUser() {
       setUserProfileMetadata(
         isUserProfileEnabled ? user.userProfileMetadata : undefined,
       );
+
+      if (isUserProfileEnabled) {
+        user.unmanagedAttributes = unmanagedAttributes;
+        user.attributes = filterManagedAttributes(
+          user.attributes,
+          unmanagedAttributes,
+        );
+      }
+
+      if (
+        upConfig.unmanagedAttributePolicy !== undefined ||
+        !isUserProfileEnabled
+      ) {
+        setUnmanagedAttributesEnabled(true);
+      }
+
+      setRealm(realm);
+      setUser(user);
+      setUpConfig(upConfig);
+
+      const isBruteForceProtected = realm.bruteForceProtected;
+      const isLocked = isBruteForceProtected && attackDetection.disabled;
+
+      setBruteForced({ isBruteForceProtected, isLocked });
 
       form.reset(toUserFormFields(user, isUserProfileEnabled));
     },
@@ -125,9 +160,8 @@ export default function EditUser() {
       refresh();
     } catch (error) {
       if (isUserProfileError(error)) {
-        setUserProfileServerError(error, form.setError, (key, param) =>
-          t(key as string, { ...param }),
-        );
+        setUserProfileServerError(error, form.setError, ((key, param) =>
+          t(key as string, param as any)) as TFunction);
       } else {
         addError("userCreateError", error);
       }
@@ -141,7 +175,11 @@ export default function EditUser() {
     continueButtonVariant: ButtonVariant.danger,
     onConfirm: async () => {
       try {
-        await adminClient.users.del({ id: user!.id! });
+        if (lightweightUser) {
+          await adminClient.users.logout({ id: user!.id! });
+        } else {
+          await adminClient.users.del({ id: user!.id! });
+        }
         addAlert(t("userDeletedSuccess"), AlertVariant.success);
         navigate(toUsers({ realm: realmName }));
       } catch (error) {
@@ -183,6 +221,24 @@ export default function EditUser() {
         titleKey={user.username!}
         className="kc-username-view-header"
         divider={false}
+        badges={
+          lightweightUser
+            ? [
+                {
+                  text: (
+                    <Tooltip content={t("transientUserTooltip")}>
+                      <Label
+                        data-testid="user-details-label-transient-user"
+                        icon={<InfoCircleIcon />}
+                      >
+                        {t("transientUser")}
+                      </Label>
+                    </Tooltip>
+                  ),
+                },
+              ]
+            : []
+        }
         dropdownItems={[
           <DropdownItem
             key="impersonate"
@@ -232,13 +288,18 @@ export default function EditUser() {
                   />
                 </PageSection>
               </Tab>
-              {!userProfileMetadata && (
+              {isUnmanagedAttributesEnabled && (
                 <Tab
                   data-testid="attributes"
                   title={<TabTitleText>{t("attributes")}</TabTitleText>}
                   {...attributesTab}
                 >
-                  <UserAttributes user={user} save={save} />
+                  <UserAttributes
+                    user={user}
+                    save={save}
+                    upConfig={upConfig}
+                    isUserProfileEnabled={!!userProfileMetadata}
+                  />
                 </Tab>
               )}
               <Tab

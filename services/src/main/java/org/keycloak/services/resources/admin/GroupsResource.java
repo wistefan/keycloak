@@ -35,7 +35,7 @@ import java.util.stream.Stream;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.extensions.Extension;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
-import org.jboss.resteasy.annotations.cache.NoCache;
+import org.jboss.resteasy.reactive.NoCache;
 import org.keycloak.common.util.ObjectUtil;
 import org.keycloak.events.admin.OperationType;
 import org.keycloak.events.admin.ResourceType;
@@ -121,8 +121,8 @@ public class GroupsResource {
      * @param id
      * @return
      */
-    @Path("{id}")
-    public GroupResource getGroupById(@PathParam("id") String id) {
+    @Path("{group-id}")
+    public GroupResource getGroupById(@PathParam("group-id") String id) {
         GroupModel group = realm.getGroupById(id);
         if (group == null) {
             throw new NotFoundException("Could not find group by id");

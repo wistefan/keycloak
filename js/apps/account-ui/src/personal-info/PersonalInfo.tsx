@@ -7,6 +7,7 @@ import {
   Spinner,
 } from "@patternfly/react-core";
 import { ExternalLinkSquareAltIcon } from "@patternfly/react-icons";
+import { TFunction } from "i18next";
 import { useKeycloak } from "keycloak-masthead";
 import { useState } from "react";
 import { ErrorOption, useForm } from "react-hook-form";
@@ -16,6 +17,7 @@ import {
   setUserProfileServerError,
   useAlerts,
 } from "ui-shared";
+
 import {
   getPersonalInfo,
   getSupportedLocales,
@@ -27,7 +29,7 @@ import {
 } from "../api/representations";
 import { Page } from "../components/page/Page";
 import { environment } from "../environment";
-import { TFuncKey } from "../i18n";
+import { TFuncKey, i18n } from "../i18n";
 import { usePromise } from "../utils/usePromise";
 
 const PersonalInfo = () => {
@@ -56,6 +58,12 @@ const PersonalInfo = () => {
   const onSubmit = async (user: UserRepresentation) => {
     try {
       await savePersonalInfo(user);
+      const locale = user.attributes?.["locale"]?.toString();
+      i18n.changeLanguage(locale, (error) => {
+        if (error) {
+          console.warn("Error(s) loading locale", locale, error);
+        }
+      });
       keycloak?.updateToken();
       addAlert(t("accountUpdatedMessage"));
     } catch (error) {
@@ -65,7 +73,7 @@ const PersonalInfo = () => {
         { responseData: { errors: error as any } },
         (name: string | number, error: unknown) =>
           setError(name as string, error as ErrorOption),
-        (key: TFuncKey, param?: object) => t(key, { ...param }),
+        ((key: TFuncKey, param?: object) => t(key, param as any)) as TFunction,
       );
     }
   };
@@ -87,7 +95,10 @@ const PersonalInfo = () => {
           form={form}
           userProfileMetadata={userProfileMetadata}
           supportedLocales={supportedLocales}
-          t={(key: unknown, params) => t(key as TFuncKey, { ...params })}
+          t={
+            ((key: unknown, params) =>
+              t(key as TFuncKey, params as any)) as TFunction
+          }
           renderer={(attribute) =>
             attribute.name === "email" &&
             updateEmailFeatureEnabled &&

@@ -4,8 +4,9 @@ import type ClientScopeRepresentation from "@keycloak/keycloak-admin-client/lib/
 import type RealmRepresentation from "@keycloak/keycloak-admin-client/lib/defs/realmRepresentation";
 import type RoleRepresentation from "@keycloak/keycloak-admin-client/lib/defs/roleRepresentation";
 import type { RoleMappingPayload } from "@keycloak/keycloak-admin-client/lib/defs/roleRepresentation";
-import type UserProfileConfig from "@keycloak/keycloak-admin-client/lib/defs/userProfileMetadata";
+import type { UserProfileConfig } from "@keycloak/keycloak-admin-client/lib/defs/userProfileMetadata";
 import type UserRepresentation from "@keycloak/keycloak-admin-client/lib/defs/userRepresentation";
+import { Credentials } from "libs/keycloak-admin-client/lib/utils/auth";
 import { merge } from "lodash-es";
 
 class AdminClient {
@@ -21,6 +22,10 @@ class AdminClient {
       grantType: "password",
       clientId: "admin-cli",
     });
+  }
+
+  async auth(credentials: Credentials) {
+    return this.#client.auth(credentials);
   }
 
   async loginUser(username: string, password: string, clientId: string) {
@@ -52,7 +57,11 @@ class AdminClient {
     await this.#client.realms.del({ realm });
   }
 
-  async createClient(client: ClientRepresentation) {
+  async createClient(
+    client: ClientRepresentation & {
+      realm?: string;
+    },
+  ) {
     await this.#login();
     await this.#client.clients.create(client);
   }
@@ -66,6 +75,11 @@ class AdminClient {
     if (client) {
       await this.#client.clients.del({ id: client.id! });
     }
+  }
+
+  async getClient(clientName: string) {
+    await this.#login();
+    return (await this.#client.clients.find({ clientId: clientName }))[0];
   }
 
   async createGroup(groupName: string) {
@@ -146,6 +160,30 @@ class AdminClient {
     await this.#client.users.addRealmRoleMappings({
       id: userId,
       roles: [realmRole as RoleMappingPayload],
+    });
+  }
+
+  async addClientRoleToUser(
+    userId: string,
+    clientId: string,
+    roleNames: string[],
+  ) {
+    await this.#login();
+
+    const client = await this.#client.clients.find({ clientId });
+    const clientRoles = await Promise.all(
+      roleNames.map(
+        async (roleName) =>
+          (await this.#client.clients.findRole({
+            id: client[0].id!,
+            roleName: roleName,
+          })) as RoleMappingPayload,
+      ),
+    );
+    await this.#client.users.addClientRoleMappings({
+      id: userId,
+      clientUniqueId: client[0].id!,
+      roles: clientRoles,
     });
   }
 

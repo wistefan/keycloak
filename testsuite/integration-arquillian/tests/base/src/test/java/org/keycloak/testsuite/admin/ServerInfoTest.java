@@ -32,7 +32,6 @@ import org.keycloak.testsuite.AbstractKeycloakTest;
 import org.keycloak.testsuite.Assert;
 import org.keycloak.testsuite.util.KeyUtils;
 import org.keycloak.testsuite.util.KeystoreUtils;
-import org.keycloak.testsuite.util.WaitUtils;
 
 import java.util.List;
 import java.util.Map;
@@ -89,11 +88,9 @@ public class ServerInfoTest extends AbstractKeycloakTest {
         assertNotNull(info.getSystemInfo().getServerTime());
         assertNotNull(info.getSystemInfo().getUptime());
 
-        if (isJpaRealmProvider()) {
-            Map<String, ProviderRepresentation> jpaProviders = info.getProviders().get("connectionsJpa").getProviders();
-            ProviderRepresentation jpaProvider = jpaProviders.values().iterator().next();
-            log.infof("JPA Connections provider info: %s", jpaProvider.getOperationalInfo());
-        }
+        Map<String, ProviderRepresentation> jpaProviders = info.getProviders().get("connectionsJpa").getProviders();
+        ProviderRepresentation jpaProvider = jpaProviders.values().iterator().next();
+        log.infof("JPA Connections provider info: %s", jpaProvider.getOperationalInfo());
     }
 
     @Override

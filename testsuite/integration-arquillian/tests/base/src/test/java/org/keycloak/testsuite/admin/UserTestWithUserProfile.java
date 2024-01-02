@@ -51,20 +51,21 @@ public class UserTestWithUserProfile extends UserTest {
     public void onBefore() throws IOException {
         RealmRepresentation realmRep = realm.toRepresentation();
         VerifyProfileTest.disableDynamicUserProfile(realm);
-        assertAdminEvents.poll();
-        realm.update(realmRep);
-        assertAdminEvents.poll();
+        assertAdminEvents.poll(); // update realm
+        assertAdminEvents.poll(); // set UP configuration
         VerifyProfileTest.enableDynamicUserProfile(realmRep);
         realm.update(realmRep);
         assertAdminEvents.poll();
         VerifyProfileTest.setUserProfileConfiguration(realm, null);
+        assertAdminEvents.poll();
         UPConfig upConfig = realm.users().userProfile().getConfiguration();
 
         for (String name : managedAttributes) {
-            upConfig.addAttribute(createAttributeMetadata(name));
+            upConfig.addOrReplaceAttribute(createAttributeMetadata(name));
         }
 
         VerifyProfileTest.setUserProfileConfiguration(realm, JsonSerialization.writeValueAsString(upConfig));
+        assertAdminEvents.poll();
     }
 
     @Test

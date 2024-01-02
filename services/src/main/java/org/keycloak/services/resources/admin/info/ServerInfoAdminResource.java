@@ -20,7 +20,7 @@ package org.keycloak.services.resources.admin.info;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.extensions.Extension;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
-import org.jboss.resteasy.annotations.cache.NoCache;
+import org.jboss.resteasy.reactive.NoCache;
 import org.keycloak.broker.provider.IdentityProvider;
 import org.keycloak.broker.provider.IdentityProviderFactory;
 import org.keycloak.broker.social.SocialIdentityProvider;
@@ -113,10 +113,12 @@ public class ServerInfoAdminResource {
                                 Collectors.toMap(
                                         ClientSignatureVerifierProvider::isAsymmetricAlgorithm,
                                         clientSignatureVerifier -> Collections.singletonList(clientSignatureVerifier.getAlgorithm()),
-                                        (l1, l2) -> listCombiner(l1, l2)
-                                                .stream()
-                                                .sorted()
-                                                .collect(Collectors.toList()),
+                                        (l1, l2) -> {
+                                            List<String> result = listCombiner(l1, l2);
+                                            return result.stream()
+                                                    .sorted()
+                                                    .collect(Collectors.toList());
+                                        },
                                         HashMap::new
                                 )
                         );

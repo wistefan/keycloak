@@ -29,9 +29,9 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.keycloak.userprofile.config.UPConfigUtils.ROLE_ADMIN;
 import static org.keycloak.userprofile.config.UPConfigUtils.ROLE_USER;
+import static org.keycloak.userprofile.config.UPConfigUtils.parseDefaultConfig;
 
 import jakarta.ws.rs.core.Response;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -44,8 +44,10 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 import org.junit.Assert;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.keycloak.admin.client.resource.RealmResource;
+import org.keycloak.common.Profile.Feature;
 import org.keycloak.component.ComponentModel;
 import org.keycloak.component.ComponentValidationException;
 import org.keycloak.models.Constants;
@@ -53,11 +55,17 @@ import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.LDAPConstants;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
+import org.keycloak.representations.idm.AbstractUserRepresentation;
 import org.keycloak.representations.idm.ClientRepresentation;
 import org.keycloak.representations.idm.RealmRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
+import org.keycloak.representations.userprofile.config.UPConfig.UnmanagedAttributePolicy;
+import org.keycloak.representations.userprofile.config.UPGroup;
 import org.keycloak.services.messages.Messages;
+import org.keycloak.testsuite.arquillian.annotation.EnableFeature;
+import org.keycloak.testsuite.arquillian.annotation.ModelTest;
 import org.keycloak.testsuite.runonserver.RunOnServer;
+import org.keycloak.testsuite.util.LDAPRule;
 import org.keycloak.userprofile.AttributeGroupMetadata;
 import org.keycloak.representations.userprofile.config.UPAttribute;
 import org.keycloak.representations.userprofile.config.UPAttributePermissions;
@@ -69,12 +77,11 @@ import org.keycloak.testsuite.util.ClientScopeBuilder;
 import org.keycloak.testsuite.util.KeycloakModelUtils;
 import org.keycloak.userprofile.Attributes;
 import org.keycloak.userprofile.UserProfile;
+import org.keycloak.userprofile.UserProfileConstants;
 import org.keycloak.userprofile.UserProfileContext;
 import org.keycloak.userprofile.UserProfileProvider;
 import org.keycloak.userprofile.ValidationException;
-import org.keycloak.userprofile.config.UPConfigUtils;
 import org.keycloak.userprofile.validator.UsernameIDNHomographValidator;
-import org.keycloak.util.JsonSerialization;
 import org.keycloak.validate.ValidationError;
 import org.keycloak.validate.validators.EmailValidator;
 import org.keycloak.validate.validators.LengthValidator;
@@ -86,14 +93,19 @@ public class UserProfileTest extends AbstractUserProfileTest {
 
     protected static final String ATT_ADDRESS = "address";
 
+    @ClassRule
+    public static LDAPRule ldapRule = new LDAPRule();
+
     @Override
     public void configureTestRealm(RealmRepresentation testRealm) {
         super.configureTestRealm(testRealm);
         testRealm.setClientScopes(new ArrayList<>());
         testRealm.getClientScopes().add(ClientScopeBuilder.create().name("customer").protocol("openid-connect").build());
         testRealm.getClientScopes().add(ClientScopeBuilder.create().name("client-a").protocol("openid-connect").build());
+        testRealm.getClientScopes().add(ClientScopeBuilder.create().name("some-optional-scope").protocol("openid-connect").build());
         ClientRepresentation client = KeycloakModelUtils.createClient(testRealm, "client-a");
         client.setDefaultClientScopes(Collections.singletonList("customer"));
+        client.setOptionalClientScopes(Collections.singletonList("some-optional-scope"));
         KeycloakModelUtils.createClient(testRealm, "client-b");
     }
 
@@ -105,7 +117,9 @@ public class UserProfileTest extends AbstractUserProfileTest {
     @Test
     public void testReadOnlyAllowed() throws Exception {
         // create a user with attribute foo value 123 allowed by the profile now but disallowed later
-        UPConfig config = JsonSerialization.readValue("{\"attributes\": [{\"name\": \"foo\", \"permissions\": {\"edit\": [\"admin\"]}}]}", UPConfig.class);
+        UPConfig config = parseDefaultConfig();
+        config.addOrReplaceAttribute(new UPAttribute("foo", new UPAttributePermissions(Set.of(), Set.of(ROLE_ADMIN))));
+        config.getAttribute(UserModel.EMAIL).setPermissions(new UPAttributePermissions(Set.of(ROLE_USER), Set.of(ROLE_ADMIN)));
         RealmResource realmRes = testRealm();
         realmRes.users().userProfile().update(config);
 
@@ -125,10 +139,24 @@ public class UserProfileTest extends AbstractUserProfileTest {
             RealmModel realm = session.getContext().getRealm();
             UserModel user = session.users().getUserById(realm, userId);
             UserProfileProvider provider = getUserProfileProvider(session);
-            provider.setConfiguration("{\"attributes\": [{\"name\": \"foo\", \"validations\": {\"length\": {\"min\": \"5\", \"max\": \"15\"}}, \"permissions\": {\"edit\": [\"admin\"]}}]}");
-
+            UPConfig upConfig = provider.getConfiguration();
+            upConfig.getAttribute("foo")
+                    .setValidations(Map.of("length", Map.of("min", "5", "max", "15")));
+            provider.setConfiguration(upConfig);
             Map<String, List<String>> attributes = new HashMap<>(user.getAttributes());
             UserProfile profile = provider.create(UserProfileContext.UPDATE_PROFILE, attributes, user);
+            profile.validate();
+        });
+
+        // it should work if foo is read-only in the context
+        getTestingClient().server(TEST_REALM_NAME).run(session -> {
+            RealmModel realm = session.getContext().getRealm();
+            UserModel user = session.users().getUserById(realm, userId);
+            user.setEmail(null);
+            UserProfileProvider provider = getUserProfileProvider(session);
+            Map<String, Object> attributes = new HashMap<>(user.getAttributes());
+            attributes.put("email", "");
+            UserProfile profile = provider.create(UserProfileContext.ACCOUNT, attributes, user);
             profile.validate();
         });
 
@@ -137,7 +165,11 @@ public class UserProfileTest extends AbstractUserProfileTest {
             RealmModel realm = session.getContext().getRealm();
             UserModel user = session.users().getUserById(realm, userId);
             UserProfileProvider provider = getUserProfileProvider(session);
-            provider.setConfiguration("{\"attributes\": [{\"name\": \"foo\", \"validations\": {\"length\": {\"min\": \"5\", \"max\": \"15\"}}, \"permissions\": {\"edit\": [\"admin\", \"user\"]}}]}");
+            UPConfig upConfig = provider.getConfiguration();
+            UPAttribute changedFoo = upConfig.getAttribute("foo");
+            changedFoo.setPermissions(new UPAttributePermissions(Set.of(), Set.of(ROLE_USER, ROLE_ADMIN)));
+            changedFoo.setValidations(Map.of("length", Map.of("min", "5", "max", "15")));
+            provider.setConfiguration(upConfig);
 
             Map<String, List<String>> attributes = new HashMap<>(user.getAttributes());
             UserProfile profile = provider.create(UserProfileContext.UPDATE_PROFILE, attributes, user);
@@ -160,7 +192,7 @@ public class UserProfileTest extends AbstractUserProfileTest {
 
         // once created, profile attributes can not be changed
         assertTrue(profile.getAttributes().contains(UserModel.USERNAME));
-        assertNull(profile.getAttributes().getFirstValue(UserModel.USERNAME));
+        assertNull(profile.getAttributes().getFirst(UserModel.USERNAME));
     }
 
     @Test
@@ -177,8 +209,9 @@ public class UserProfileTest extends AbstractUserProfileTest {
         attributes.put(UserModel.EMAIL, org.keycloak.models.utils.KeycloakModelUtils.generateId() + "@keycloak.org");
 
         UserProfileProvider provider = getUserProfileProvider(session);
-
-        provider.setConfiguration("{\"attributes\": [{\"name\": \"address\", \"required\": {}, \"permissions\": {\"edit\": [\"user\"]}}]}");
+        UPConfig config = parseDefaultConfig();
+        config.addOrReplaceAttribute(new UPAttribute("address", new UPAttributePermissions(Set.of(), Set.of(ROLE_USER)), new UPAttributeRequired()));
+        provider.setConfiguration(config);
 
         UserProfile profile = provider.create(UserProfileContext.UPDATE_PROFILE, attributes);
 
@@ -192,10 +225,12 @@ public class UserProfileTest extends AbstractUserProfileTest {
 
         containsInAnyOrder(UserModel.USERNAME, UserModel.EMAIL, UserModel.FIRST_NAME, UserModel.LAST_NAME, "address");
 
+        // not writable in user api, no validation should happen
+        profile = provider.create(UserProfileContext.USER_API, attributes);
+        profile.validate();
+
         attributes.put("address", "myaddress");
-
         profile = provider.create(UserProfileContext.UPDATE_PROFILE, attributes);
-
         profile.validate();
     }
 
@@ -215,8 +250,9 @@ public class UserProfileTest extends AbstractUserProfileTest {
         attributes.put(UserModel.EMAIL, org.keycloak.models.utils.KeycloakModelUtils.generateId() + "@keycloak.org");
 
         UserProfileProvider provider = getUserProfileProvider(session);
-
-        provider.setConfiguration("{\"attributes\": [{\"name\": \"business.address\", \"required\": {\"scopes\": [\"customer\"]}, \"permissions\": {\"edit\": [\"user\"]}}]}");
+        UPConfig config = parseDefaultConfig();
+        config.addOrReplaceAttribute(new UPAttribute("business.address", new UPAttributePermissions(Set.of(), Set.of(ROLE_USER)), new UPAttributeRequired(Set.of(), Set.of("customer"))));
+        provider.setConfiguration(config);
 
         UserProfile profile = provider.create(UserProfileContext.UPDATE_PROFILE, attributes);
 
@@ -244,7 +280,7 @@ public class UserProfileTest extends AbstractUserProfileTest {
         getTestingClient().server(TEST_REALM_NAME).run((RunOnServer) UserProfileTest::testAttributeValidation);
     }
 
-    private static void failValidationWhenEmptyAttributes(KeycloakSession session) throws IOException {
+    private static void failValidationWhenEmptyAttributes(KeycloakSession session) {
         Map<String, Object> attributes = new HashMap<>();
         UserProfileProvider provider = session.getProvider(UserProfileProvider.class);
         provider.setConfiguration(null);
@@ -293,7 +329,7 @@ public class UserProfileTest extends AbstractUserProfileTest {
 
         email.setRequired(null);
 
-        provider.setConfiguration(JsonSerialization.writeValueAsString(config));
+        provider.setConfiguration(config);
 
         attributes.clear();
         attributes.put(UserModel.USERNAME, "profile-user");
@@ -335,27 +371,14 @@ public class UserProfileTest extends AbstractUserProfileTest {
         getTestingClient().server(TEST_REALM_NAME).run((RunOnServer) UserProfileTest::testValidateComplianceWithUserProfile);
     }
 
-    private static void testValidateComplianceWithUserProfile(KeycloakSession session) throws IOException {
+    private static void testValidateComplianceWithUserProfile(KeycloakSession session) {
         RealmModel realm = session.getContext().getRealm();
         UserModel user = session.users().addUser(realm, "profiled-user");
         UserProfileProvider provider = getUserProfileProvider(session);
 
-        UPConfig config = new UPConfig();
-        UPAttribute attribute = new UPAttribute();
-
-        attribute.setName("address");
-
-        UPAttributeRequired requirements = new UPAttributeRequired();
-
-        attribute.setRequired(requirements);
-
-        UPAttributePermissions permissions = new UPAttributePermissions();
-        permissions.setEdit(Collections.singleton(ROLE_USER));
-        attribute.setPermissions(permissions);
-
-        config.addAttribute(attribute);
-
-        provider.setConfiguration(JsonSerialization.writeValueAsString(config));
+        UPConfig config = parseDefaultConfig();
+        config.addOrReplaceAttribute(new UPAttribute("address", new UPAttributePermissions(Set.of(), Set.of(ROLE_USER)), new UPAttributeRequired()));
+        provider.setConfiguration(config);
 
         UserProfile profile = provider.create(UserProfileContext.ACCOUNT, user);
 
@@ -388,9 +411,11 @@ public class UserProfileTest extends AbstractUserProfileTest {
         user.setFirstName("John");
         user.setLastName("John");
         user.setEmail(org.keycloak.models.utils.KeycloakModelUtils.generateId() + "@keycloak.org");
-        UserProfileProvider provider = getUserProfileProvider(session);
 
-        provider.setConfiguration("{\"attributes\": [{\"name\": \"address\", \"required\": {}, \"permissions\": {\"edit\": [\"user\"]}}]}");
+        UserProfileProvider provider = getUserProfileProvider(session);
+        UPConfig config = parseDefaultConfig();
+        config.addOrReplaceAttribute(new UPAttribute("address", new UPAttributePermissions(Set.of(), Set.of(ROLE_USER)), new UPAttributeRequired()));
+        provider.setConfiguration(config);
 
         UserProfile profile = provider.create(UserProfileContext.ACCOUNT, user);
         Attributes attributes = profile.getAttributes();
@@ -406,11 +431,11 @@ public class UserProfileTest extends AbstractUserProfileTest {
             assertTrue(ve.isAttributeOnError("address"));
         }
 
-        assertNotNull(attributes.getFirstValue(UserModel.USERNAME));
-        assertNotNull(attributes.getFirstValue(UserModel.EMAIL));
-        assertNotNull(attributes.getFirstValue(UserModel.FIRST_NAME));
-        assertNotNull(attributes.getFirstValue(UserModel.LAST_NAME));
-        assertNull(attributes.getFirstValue("address"));
+        assertNotNull(attributes.getFirst(UserModel.USERNAME));
+        assertNotNull(attributes.getFirst(UserModel.EMAIL));
+        assertNotNull(attributes.getFirst(UserModel.FIRST_NAME));
+        assertNotNull(attributes.getFirst(UserModel.LAST_NAME));
+        assertNull(attributes.getFirst("address"));
 
         user.setAttribute("address", Arrays.asList("fixed-address"));
 
@@ -419,7 +444,7 @@ public class UserProfileTest extends AbstractUserProfileTest {
 
         profile.validate();
 
-        assertNotNull(attributes.getFirstValue("address"));
+        assertNotNull(attributes.getFirst("address"));
     }
 
     @Test
@@ -431,34 +456,17 @@ public class UserProfileTest extends AbstractUserProfileTest {
         RealmModel realm = session.getContext().getRealm();
         UserModel user = session.users().addUser(realm, org.keycloak.models.utils.KeycloakModelUtils.generateId());
         UserProfileProvider provider = getUserProfileProvider(session);
-
-        String configuration = "{\n" +
-                "  \"attributes\": [\n" +
-                "    {\n" +
-                "      \"name\": \"address\",\n" +
-                "      \"group\": \"companyaddress\"\n" +
-                "    },\n" +
-                "    {\n" +
-                "      \"name\": \"second\",\n" +
-                "      \"group\": \"groupwithanno" + "\"\n" +
-                "    }\n" +
-                "  ],\n" +
-                "  \"groups\": [\n" +
-                "    {\n" +
-                "      \"name\": \"companyaddress\",\n" +
-                "      \"displayHeader\": \"header\",\n" +
-                "      \"displayDescription\": \"description\"\n" +
-                "    },\n" +
-                "    {\n" +
-                "      \"name\": \"groupwithanno\",\n" +
-                "      \"annotations\": {\n" +
-                "        \"anno1\": \"value1\",\n" +
-                "        \"anno2\": \"value2\"\n" +
-                "      }\n" +
-                "    }\n" +
-                "  ]\n" +
-                "}\n";
-        provider.setConfiguration(configuration);
+        UPConfig config = parseDefaultConfig();
+        UPGroup companyAddress = new UPGroup("companyaddress");
+        companyAddress.setDisplayHeader("header");
+        companyAddress.setDisplayDescription("description");
+        config.addGroup(companyAddress);
+        config.addOrReplaceAttribute(new UPAttribute("address", companyAddress));
+        UPGroup groupWithAnnotation = new UPGroup("groupwithanno");
+        groupWithAnnotation.setAnnotations(Map.of("anno1", "value1", "anno2", "value2"));
+        config.addGroup(groupWithAnnotation);
+        config.addOrReplaceAttribute(new UPAttribute("second", groupWithAnnotation));
+        provider.setConfiguration(config);
 
         UserProfile profile = provider.create(UserProfileContext.ACCOUNT, user);
         Attributes attributes = profile.getAttributes();
@@ -488,25 +496,13 @@ public class UserProfileTest extends AbstractUserProfileTest {
         getTestingClient().server(TEST_REALM_NAME).run((RunOnServer) UserProfileTest::testCreateAndUpdateUser);
     }
 
-    private static void testCreateAndUpdateUser(KeycloakSession session) throws IOException {
+    private static void testCreateAndUpdateUser(KeycloakSession session) {
         UserProfileProvider provider = getUserProfileProvider(session);
 
         UPConfig config = provider.getConfiguration();
-        UPAttribute attribute = new UPAttribute();
-        attribute.setName("address");
-        UPAttributePermissions permissions = new UPAttributePermissions();
-        permissions.setEdit(new HashSet<>(Arrays.asList("admin", "user")));
-        attribute.setPermissions(permissions);
-        config.addAttribute(attribute);
-
-        attribute = new UPAttribute();
-        attribute.setName("business.address");
-        permissions = new UPAttributePermissions();
-        permissions.setEdit(new HashSet<>(Arrays.asList("admin", "user")));
-        attribute.setPermissions(permissions);
-        config.addAttribute(attribute);
-
-        provider.setConfiguration(JsonSerialization.writeValueAsString(config));
+        config.addOrReplaceAttribute(new UPAttribute("address", new UPAttributePermissions(Set.of(), Set.of(ROLE_ADMIN, ROLE_USER))));
+        config.addOrReplaceAttribute(new UPAttribute("business.address", new UPAttributePermissions(Set.of(), Set.of(ROLE_ADMIN, ROLE_USER))));
+        provider.setConfiguration(config);
 
         Map<String, Object> attributes = new HashMap<>();
         String userName = org.keycloak.models.utils.KeycloakModelUtils.generateId();
@@ -577,8 +573,9 @@ public class UserProfileTest extends AbstractUserProfileTest {
         attributes.put("department", Arrays.asList("sales"));
 
         UserProfileProvider provider = getUserProfileProvider(session);
-
-        provider.setConfiguration("{\"attributes\": [{\"name\": \"department\", \"permissions\": {\"edit\": [\"admin\"]}}]}");
+        UPConfig config = parseDefaultConfig();
+        config.addOrReplaceAttribute(new UPAttribute("department", new UPAttributePermissions(Set.of(), Set.of(ROLE_ADMIN))));
+        provider.setConfiguration(config);
 
         UserProfile profile = provider.create(UserProfileContext.ACCOUNT, attributes);
         UserModel user = profile.create();
@@ -628,9 +625,11 @@ public class UserProfileTest extends AbstractUserProfileTest {
         attributes.put(UserModel.EMAIL, "readonly@foo.bar");
 
         UserProfileProvider provider = getUserProfileProvider(session);
+        UPConfig config = parseDefaultConfig();
+        config.addOrReplaceAttribute(new UPAttribute("email", new UPAttributePermissions(Set.of(), Set.of(ROLE_ADMIN))));
 
         // configure email r/o for user
-        provider.setConfiguration("{\"attributes\": [{\"name\": \"email\", \"permissions\": {\"edit\": [ \"admin\"]}}]}");
+        provider.setConfiguration(config);
 
         UserProfile profile = provider.create(UserProfileContext.ACCOUNT, attributes);
         UserModel user = profile.create();
@@ -647,15 +646,18 @@ public class UserProfileTest extends AbstractUserProfileTest {
         attributes.put(UserModel.EMAIL, "cannot-change@foo.bar");
 
         profile = provider.create(UserProfileContext.ACCOUNT, attributes, user);
-
         try {
             profile.update();
             fail("Should fail since email is read only");
         } catch (ValidationException ve) {
             assertTrue(ve.isAttributeOnError("email"));
         }
-
         assertEquals("E-Mail address shouldn't be changed", "readonly@foo.bar", user.getEmail());
+
+        attributes.put(UserModel.EMAIL, "admin-can-change@foo.bar");
+        profile = provider.create(UserProfileContext.USER_API, attributes, user);
+        profile.update();
+        assertEquals("admin-can-change@foo.bar", user.getEmail());
     }
 
     @Test
@@ -672,9 +674,12 @@ public class UserProfileTest extends AbstractUserProfileTest {
         attributes.put(UserModel.EMAIL, "canchange@foo.bar");
 
         UserProfileProvider provider = getUserProfileProvider(session);
+        UPConfig config = parseDefaultConfig();
+
+        config.getAttribute("email").getPermissions().setEdit(Set.of(ROLE_USER, ROLE_ADMIN));
 
         // configure email r/w for user
-        provider.setConfiguration("{\"attributes\": [{\"name\": \"email\", \"permissions\": {\"edit\": [ \"user\", \"admin\"]}}]}");
+        provider.setConfiguration(config);
 
         UserProfile profile = provider.create(UserProfileContext.ACCOUNT, attributes);
         UserModel user = profile.create();
@@ -714,10 +719,12 @@ public class UserProfileTest extends AbstractUserProfileTest {
         attributes.put("phone", Arrays.asList("fixed-phone"));
 
         UserProfileProvider provider = getUserProfileProvider(session);
+        UPConfig config = parseDefaultConfig();
+        config.addOrReplaceAttribute(new UPAttribute("department", new UPAttributePermissions(Set.of(), Set.of(ROLE_ADMIN))));
+        config.addOrReplaceAttribute(new UPAttribute("phone", new UPAttributePermissions(Set.of(), Set.of(ROLE_ADMIN))));
+        config.addOrReplaceAttribute(new UPAttribute("address", new UPAttributePermissions(Set.of(), Set.of(ROLE_ADMIN))));
+        provider.setConfiguration(config);
 
-        provider.setConfiguration("{\"attributes\": [{\"name\": \"department\", \"permissions\": {\"edit\": [\"admin\"]}},"
-                + "{\"name\": \"phone\", \"permissions\": {\"edit\": [\"admin\"]}},"
-                + "{\"name\": \"address\", \"permissions\": {\"edit\": [\"admin\"]}}]}");
         UserProfile profile = provider.create(UserProfileContext.ACCOUNT, attributes);
         UserModel user = profile.create();
         assertThat(profile.getAttributes().nameSet(),
@@ -731,8 +738,8 @@ public class UserProfileTest extends AbstractUserProfileTest {
         profile.update((attributeName, userModel, oldValue) -> assertTrue(attributesUpdated.add(attributeName)));
         assertThat(attributesUpdated, containsInAnyOrder("department", "address", "phone"));
 
-        provider.setConfiguration("{\"attributes\": [{\"name\": \"department\", \"permissions\": {\"edit\": [\"admin\"]}},"
-                + "{\"name\": \"phone\", \"permissions\": {\"edit\": [\"admin\"]}}]}");
+        config.removeAttribute("address");
+        provider.setConfiguration(config);
         attributesUpdated.clear();
         attributes.remove("address");
         attributes.put("department", "foo");
@@ -742,9 +749,8 @@ public class UserProfileTest extends AbstractUserProfileTest {
         assertThat(attributesUpdated, containsInAnyOrder("department", "phone"));
         assertTrue(user.getAttributes().containsKey("address"));
 
-        provider.setConfiguration("{\"attributes\": [{\"name\": \"department\", \"permissions\": {\"edit\": [\"admin\"]}},"
-                + "{\"name\": \"phone\", \"permissions\": {\"edit\": [\"admin\"]}},"
-                + "{\"name\": \"address\", \"permissions\": {\"edit\": [\"admin\"]}}]}");
+        config.addOrReplaceAttribute(new UPAttribute("address", new UPAttributePermissions(Set.of(), Set.of(ROLE_ADMIN))));
+        provider.setConfiguration(config);
         attributes.put("department", "foo");
         attributes.put("phone", "foo");
         attributes.put("address", "bar");
@@ -792,12 +798,10 @@ public class UserProfileTest extends AbstractUserProfileTest {
     }
 
     private static void testInvalidConfiguration(KeycloakSession session) {
-        UserProfileProvider provider = getUserProfileProvider(session);
-
         try {
-            provider.setConfiguration("{\"validateConfigAttribute\": true}");
+            setConfiguration(session, "{\"validateConfigAttribute\": true}");
             fail("Should fail validation");
-        } catch (ComponentValidationException ve) {
+        } catch (RuntimeException ve) {
             // OK
         }
 
@@ -808,7 +812,7 @@ public class UserProfileTest extends AbstractUserProfileTest {
         getTestingClient().server(TEST_REALM_NAME).run((RunOnServer) UserProfileTest::testResetConfiguration);
     }
 
-    private static void testResetConfiguration(KeycloakSession session) throws IOException {
+    private static void testResetConfiguration(KeycloakSession session) {
         setConfiguration(session, null);
         assertFalse(getComponentModel(session).isPresent());
     }
@@ -868,11 +872,9 @@ public class UserProfileTest extends AbstractUserProfileTest {
         getTestingClient().server(TEST_REALM_NAME).run((RunOnServer) UserProfileTest::testCustomValidationForUsername);
     }
 
-    private static void testCustomValidationForUsername(KeycloakSession session) throws IOException {
-        UPConfig config = new UPConfig();
-        UPAttribute attribute = new UPAttribute();
-
-        attribute.setName(UserModel.USERNAME);
+    private static void testCustomValidationForUsername(KeycloakSession session) {
+        UPConfig config = parseDefaultConfig();
+        UPAttribute attribute = new UPAttribute(UserModel.USERNAME);
 
         Map<String, Object> validatorConfig = new HashMap<>();
 
@@ -880,10 +882,10 @@ public class UserProfileTest extends AbstractUserProfileTest {
 
         attribute.addValidation(LengthValidator.ID, validatorConfig);
 
-        config.addAttribute(attribute);
+        config.addOrReplaceAttribute(attribute);
 
         UserProfileProvider provider = getUserProfileProvider(session);
-        provider.setConfiguration(JsonSerialization.writeValueAsString(config));
+        provider.setConfiguration(config);
 
         Map<String, Object> attributes = new HashMap<>();
 
@@ -910,7 +912,7 @@ public class UserProfileTest extends AbstractUserProfileTest {
 
         provider.setConfiguration(null);
 
-        attributes.put(UserModel.USERNAME, "user");
+        attributes.put(UserModel.USERNAME, ROLE_USER);
         attributes.put(UserModel.EMAIL, "user@keycloak.org");
         attributes.put(UserModel.FIRST_NAME, "Joe");
         attributes.put(UserModel.LAST_NAME, "Doe");
@@ -925,7 +927,7 @@ public class UserProfileTest extends AbstractUserProfileTest {
         getTestingClient().server(TEST_REALM_NAME).run((RunOnServer) UserProfileTest::testRemoveDefaultValidationFromUsername);
     }
 
-    private static void testRemoveDefaultValidationFromUsername(KeycloakSession session) throws IOException {
+    private static void testRemoveDefaultValidationFromUsername(KeycloakSession session) {
         UserProfileProvider provider = getUserProfileProvider(session);
 
         // reset configuration to default
@@ -956,7 +958,7 @@ public class UserProfileTest extends AbstractUserProfileTest {
             }
         }
 
-        provider.setConfiguration(JsonSerialization.writeValueAsString(config));
+        provider.setConfiguration(config);
 
         profile = provider.create(UserProfileContext.UPDATE_PROFILE, attributes);
 
@@ -968,22 +970,22 @@ public class UserProfileTest extends AbstractUserProfileTest {
         getTestingClient().server(TEST_REALM_NAME).run((RunOnServer) UserProfileTest::testOptionalAttributes);
     }
 
-    private static void testOptionalAttributes(KeycloakSession session) throws IOException {
+    private static void testOptionalAttributes(KeycloakSession session) {
         UserProfileProvider provider = getUserProfileProvider(session);
-        UPConfig config = new UPConfig();
+        UPConfig config = parseDefaultConfig();
         UPAttribute attribute = new UPAttribute();
         attribute.setName(UserModel.FIRST_NAME);
         Map<String, Object> validatorConfig = new HashMap<>();
         validatorConfig.put(LengthValidator.KEY_MAX, 4);
         attribute.addValidation(LengthValidator.ID, validatorConfig);
-        config.addAttribute(attribute);
+        config.addOrReplaceAttribute(attribute);
 
         attribute = new UPAttribute();
         attribute.setName(UserModel.LAST_NAME);
         attribute.addValidation(LengthValidator.ID, validatorConfig);
-        config.addAttribute(attribute);
+        config.addOrReplaceAttribute(attribute);
 
-        provider.setConfiguration(JsonSerialization.writeValueAsString(config));
+        provider.setConfiguration(config);
 
         Map<String, Object> attributes = new HashMap<>();
 
@@ -1026,9 +1028,9 @@ public class UserProfileTest extends AbstractUserProfileTest {
         getTestingClient().server(TEST_REALM_NAME).run((RunOnServer) UserProfileTest::testCustomAttributeRequired);
     }
 
-    private static void testCustomAttributeRequired(KeycloakSession session) throws IOException {
+    private static void testCustomAttributeRequired(KeycloakSession session) {
         UserProfileProvider provider = getUserProfileProvider(session);
-        UPConfig config = new UPConfig();
+        UPConfig config = parseDefaultConfig();
         UPAttribute attribute = new UPAttribute();
 
         attribute.setName(ATT_ADDRESS);
@@ -1047,9 +1049,9 @@ public class UserProfileTest extends AbstractUserProfileTest {
         permissions.setEdit(Collections.singleton(ROLE_USER));
         attribute.setPermissions(permissions);
 
-        config.addAttribute(attribute);
+        config.addOrReplaceAttribute(attribute);
 
-        provider.setConfiguration(JsonSerialization.writeValueAsString(config));
+        provider.setConfiguration(config);
 
         Map<String, Object> attributes = new HashMap<>();
 
@@ -1092,9 +1094,9 @@ public class UserProfileTest extends AbstractUserProfileTest {
         getTestingClient().server(TEST_REALM_NAME).run((RunOnServer) UserProfileTest::testCustomAttributeOptional);
     }
 
-    private static void testCustomAttributeOptional(KeycloakSession session) throws IOException {
+    private static void testCustomAttributeOptional(KeycloakSession session) {
         UserProfileProvider provider = getUserProfileProvider(session);
-        UPConfig config = new UPConfig();
+        UPConfig config = parseDefaultConfig();
         UPAttribute attribute = new UPAttribute();
 
         attribute.setName(ATT_ADDRESS);
@@ -1103,9 +1105,9 @@ public class UserProfileTest extends AbstractUserProfileTest {
         validatorConfig.put(LengthValidator.KEY_MIN, 4);
         attribute.addValidation(LengthValidator.ID, validatorConfig);
 
-        config.addAttribute(attribute);
+        config.addOrReplaceAttribute(attribute);
 
-        provider.setConfiguration(JsonSerialization.writeValueAsString(config));
+        provider.setConfiguration(config);
 
         Map<String, Object> attributes = new HashMap<>();
         attributes.put(UserModel.USERNAME, "user");
@@ -1144,26 +1146,11 @@ public class UserProfileTest extends AbstractUserProfileTest {
         getTestingClient().server(TEST_REALM_NAME).run((RunOnServer) UserProfileTest::testRequiredIfUser);
     }
 
-    private static void testRequiredIfUser(KeycloakSession session) throws IOException {
+    private static void testRequiredIfUser(KeycloakSession session) {
         UserProfileProvider provider = getUserProfileProvider(session);
-        UPConfig config = new UPConfig();
-        UPAttribute attribute = new UPAttribute();
-
-        attribute.setName(ATT_ADDRESS);
-
-        UPAttributeRequired requirements = new UPAttributeRequired();
-
-        requirements.setRoles(Collections.singleton(ROLE_USER));
-
-        attribute.setRequired(requirements);
-
-        UPAttributePermissions permissions = new UPAttributePermissions();
-        permissions.setEdit(Collections.singleton(ROLE_USER));
-        attribute.setPermissions(permissions);
-
-        config.addAttribute(attribute);
-
-        provider.setConfiguration(JsonSerialization.writeValueAsString(config));
+        UPConfig config = parseDefaultConfig();
+        config.addOrReplaceAttribute(new UPAttribute(ATT_ADDRESS, new UPAttributePermissions(Set.of(), Set.of(ROLE_USER)), new UPAttributeRequired(Set.of(ROLE_USER), Set.of())));
+        provider.setConfiguration(config);
 
         Map<String, Object> attributes = new HashMap<>();
 
@@ -1207,26 +1194,11 @@ public class UserProfileTest extends AbstractUserProfileTest {
         getTestingClient().server(TEST_REALM_NAME).run((RunOnServer) UserProfileTest::testRequiredIfAdmin);
     }
 
-    private static void testRequiredIfAdmin(KeycloakSession session) throws IOException {
+    private static void testRequiredIfAdmin(KeycloakSession session) {
         UserProfileProvider provider = getUserProfileProvider(session);
-        UPConfig config = new UPConfig();
-        UPAttribute attribute = new UPAttribute();
-
-        attribute.setName(ATT_ADDRESS);
-
-        UPAttributeRequired requirements = new UPAttributeRequired();
-
-        requirements.setRoles(Collections.singleton(ROLE_ADMIN));
-
-        attribute.setRequired(requirements);
-
-        UPAttributePermissions permissions = new UPAttributePermissions();
-        permissions.setEdit(Collections.singleton(UPConfigUtils.ROLE_ADMIN));
-        attribute.setPermissions(permissions);
-
-        config.addAttribute(attribute);
-
-        provider.setConfiguration(JsonSerialization.writeValueAsString(config));
+        UPConfig config = parseDefaultConfig();
+        config.addOrReplaceAttribute(new UPAttribute(ATT_ADDRESS, new UPAttributePermissions(Set.of(), Set.of(ROLE_ADMIN)), new UPAttributeRequired(Set.of(ROLE_ADMIN), Set.of())));
+        provider.setConfiguration(config);
 
         Map<String, Object> attributes = new HashMap<>();
 
@@ -1261,23 +1233,11 @@ public class UserProfileTest extends AbstractUserProfileTest {
         getTestingClient().server(TEST_REALM_NAME).run((RunOnServer) UserProfileTest::testNoValidationsIfUserReadOnly);
     }
 
-    private static void testNoValidationsIfUserReadOnly(KeycloakSession session) throws IOException {
+    private static void testNoValidationsIfUserReadOnly(KeycloakSession session) {
         UserProfileProvider provider = getUserProfileProvider(session);
-        UPConfig config = new UPConfig();
-        UPAttribute attribute = new UPAttribute();
-
-        attribute.setName(ATT_ADDRESS);
-
-        UPAttributeRequired requirements = new UPAttributeRequired();
-        attribute.setRequired(requirements);
-
-        UPAttributePermissions permissions = new UPAttributePermissions();
-        permissions.setEdit(Collections.singleton(UPConfigUtils.ROLE_ADMIN));
-        attribute.setPermissions(permissions);
-
-        config.addAttribute(attribute);
-
-        provider.setConfiguration(JsonSerialization.writeValueAsString(config));
+        UPConfig config = parseDefaultConfig();
+        config.addOrReplaceAttribute(new UPAttribute(ATT_ADDRESS, new UPAttributePermissions(Set.of(), Set.of(ROLE_ADMIN)), new UPAttributeRequired()));
+        provider.setConfiguration(config);
 
         Map<String, Object> attributes = new HashMap<>();
 
@@ -1306,23 +1266,11 @@ public class UserProfileTest extends AbstractUserProfileTest {
         getTestingClient().server(TEST_REALM_NAME).run((RunOnServer) UserProfileTest::testNoValidationsIfAdminReadOnly);
     }
 
-    private static void testNoValidationsIfAdminReadOnly(KeycloakSession session) throws IOException {
+    private static void testNoValidationsIfAdminReadOnly(KeycloakSession session) {
         UserProfileProvider provider = getUserProfileProvider(session);
-        UPConfig config = new UPConfig();
-        UPAttribute attribute = new UPAttribute();
-
-        attribute.setName(ATT_ADDRESS);
-
-        UPAttributeRequired requirements = new UPAttributeRequired();
-        attribute.setRequired(requirements);
-
-        UPAttributePermissions permissions = new UPAttributePermissions();
-        permissions.setEdit(Collections.singleton(UPConfigUtils.ROLE_USER));
-        attribute.setPermissions(permissions);
-
-        config.addAttribute(attribute);
-
-        provider.setConfiguration(JsonSerialization.writeValueAsString(config));
+        UPConfig config = parseDefaultConfig();
+        config.addOrReplaceAttribute(new UPAttribute(ATT_ADDRESS, new UPAttributePermissions(Set.of(), Set.of(ROLE_USER)), new UPAttributeRequired()));
+        provider.setConfiguration(config);
 
         Map<String, Object> attributes = new HashMap<>();
 
@@ -1347,32 +1295,12 @@ public class UserProfileTest extends AbstractUserProfileTest {
         getTestingClient().server(TEST_REALM_NAME).run((RunOnServer) UserProfileTest::testIgnoreReadOnlyAttribute);
     }
 
-    private static void testIgnoreReadOnlyAttribute(KeycloakSession session) throws IOException {
+    private static void testIgnoreReadOnlyAttribute(KeycloakSession session) {
         UserProfileProvider provider = getUserProfileProvider(session);
-        UPConfig config = new UPConfig();
-        UPAttribute firstName = new UPAttribute();
-
-        firstName.setName(UserModel.FIRST_NAME);
-
-        UPAttribute address = new UPAttribute();
-
-        address.setName(ATT_ADDRESS);
-
-        UPAttributeRequired requirements = new UPAttributeRequired();
-        requirements.setRoles(Collections.singleton(UPConfigUtils.ROLE_USER));
-        address.setRequired(requirements);
-        firstName.setRequired(requirements);
-
-        UPAttributePermissions permissions = new UPAttributePermissions();
-        permissions.setEdit(Collections.singleton(UPConfigUtils.ROLE_USER));
-        permissions.setView(Collections.singleton(ROLE_ADMIN));
-        address.setPermissions(permissions);
-        firstName.setPermissions(permissions);
-
-        config.addAttribute(address);
-        config.addAttribute(firstName);
-
-        provider.setConfiguration(JsonSerialization.writeValueAsString(config));
+        UPConfig config = parseDefaultConfig();
+        config.addOrReplaceAttribute(new UPAttribute(ATT_ADDRESS, new UPAttributePermissions(Set.of(ROLE_ADMIN), Set.of(ROLE_USER)), new UPAttributeRequired(Set.of(ROLE_USER), Set.of())));
+        config.addOrReplaceAttribute(new UPAttribute(UserModel.FIRST_NAME, new UPAttributePermissions(Set.of(ROLE_ADMIN), Set.of(ROLE_USER)), new UPAttributeRequired(Set.of(ROLE_USER), Set.of())));
+        provider.setConfiguration(config);
 
         Map<String, Object> attributes = new HashMap<>();
 
@@ -1417,7 +1345,7 @@ public class UserProfileTest extends AbstractUserProfileTest {
         getTestingClient().server(TEST_REALM_NAME).run((RunOnServer) UserProfileTest::testReadOnlyInternalAttributeValidation);
     }
 
-    private static void testReadOnlyInternalAttributeValidation(KeycloakSession session) throws IOException {
+    private static void testReadOnlyInternalAttributeValidation(KeycloakSession session) {
         RealmModel realm = session.getContext().getRealm();
         UserModel maria = session.users().addUser(realm, "maria");
 
@@ -1443,26 +1371,11 @@ public class UserProfileTest extends AbstractUserProfileTest {
         getTestingClient().server(TEST_REALM_NAME).run((RunOnServer) UserProfileTest::testRequiredByClientScope);
     }
 
-    private static void testRequiredByClientScope(KeycloakSession session) throws IOException {
+    private static void testRequiredByClientScope(KeycloakSession session) {
         UserProfileProvider provider = getUserProfileProvider(session);
-        UPConfig config = new UPConfig();
-        UPAttribute attribute = new UPAttribute();
-
-        attribute.setName(ATT_ADDRESS);
-
-        UPAttributeRequired requirements = new UPAttributeRequired();
-
-        requirements.setScopes(Collections.singleton("client-a"));
-
-        attribute.setRequired(requirements);
-
-        UPAttributePermissions permissions = new UPAttributePermissions();
-        permissions.setEdit(Collections.singleton("user"));
-        attribute.setPermissions(permissions);
-
-        config.addAttribute(attribute);
-
-        provider.setConfiguration(JsonSerialization.writeValueAsString(config));
+        UPConfig config = parseDefaultConfig();
+        config.addOrReplaceAttribute(new UPAttribute(ATT_ADDRESS, new UPAttributePermissions(Set.of(), Set.of(ROLE_USER)), new UPAttributeRequired(Set.of(), Set.of("client-a"))));
+        provider.setConfiguration(config);
 
         Map<String, Object> attributes = new HashMap<>();
 
@@ -1523,31 +1436,86 @@ public class UserProfileTest extends AbstractUserProfileTest {
     }
 
     @Test
+    @ModelTest
+    public void testRequiredByOptionalClientScope(KeycloakSession session) {
+        RealmModel realm = session.realms().getRealmByName("test");
+        session.getContext().setRealm(realm);
+
+        UserProfileProvider provider = getUserProfileProvider(session);
+        UPConfig config = parseDefaultConfig();
+        config.addOrReplaceAttribute(new UPAttribute(ATT_ADDRESS, new UPAttributePermissions(Set.of(), Set.of(ROLE_ADMIN, ROLE_USER)), new UPAttributeRequired(Set.of(ROLE_ADMIN, ROLE_USER), Set.of("some-optional-scope"))));
+        provider.setConfiguration(config);
+
+        Map<String, Object> attributes = new HashMap<>();
+
+        attributes.put(UserModel.USERNAME, "user");
+        attributes.put(UserModel.FIRST_NAME, "John");
+        attributes.put(UserModel.LAST_NAME, "Doe");
+        attributes.put(UserModel.EMAIL, "user@email.test");
+
+        // client with default scopes. No address scope included
+        configureAuthenticationSession(session, "client-a", null);
+
+        // No fail on admin and account console as they do not have scopes
+        UserProfile profile = provider.create(UserProfileContext.USER_API, attributes);
+        profile.validate();
+        profile = provider.create(UserProfileContext.ACCOUNT, attributes);
+        profile.validate();
+
+        // no fail on auth flow scopes when scope is not required
+        profile = provider.create(UserProfileContext.REGISTRATION, attributes);
+        profile.validate();
+        profile = provider.create(UserProfileContext.UPDATE_PROFILE, attributes);
+        profile.validate();
+        profile = provider.create(UserProfileContext.IDP_REVIEW, attributes);
+        profile.validate();
+
+        // client with default scopes for which is attribute NOT configured as required
+        configureAuthenticationSession(session, "client-a", Set.of("some-optional-scope"));
+
+        // No fail on admin and account console as they do not have scopes
+        profile = provider.create(UserProfileContext.USER_API, attributes);
+        profile.validate();
+        profile = provider.create(UserProfileContext.ACCOUNT, attributes);
+        profile.validate();
+
+        // fail on auth flow scopes when scope is required
+        try {
+            profile = provider.create(UserProfileContext.UPDATE_PROFILE, attributes);
+            profile.validate();
+            fail("Should fail validation");
+        } catch (ValidationException ve) {
+            assertTrue(ve.isAttributeOnError(ATT_ADDRESS));
+        }
+        try {
+            profile = provider.create(UserProfileContext.REGISTRATION, attributes);
+            profile.validate();
+            fail("Should fail validation");
+        } catch (ValidationException ve) {
+            assertTrue(ve.isAttributeOnError(ATT_ADDRESS));
+        }
+        try {
+            profile = provider.create(UserProfileContext.IDP_REVIEW, attributes);
+            profile.validate();
+            fail("Should fail validation");
+        } catch (ValidationException ve) {
+            assertTrue(ve.isAttributeOnError(ATT_ADDRESS));
+        }
+    }
+
+    @Test
     public void testConfigurationInvalidScope() {
         getTestingClient().server(TEST_REALM_NAME).run((RunOnServer) UserProfileTest::testConfigurationInvalidScope);
     }
 
-    private static void testConfigurationInvalidScope(KeycloakSession session) throws IOException {
-        RealmModel realm = session.getContext().getRealm();
+    private static void testConfigurationInvalidScope(KeycloakSession session) {
         UserProfileProvider provider = getUserProfileProvider(session);
-        UPConfig config = new UPConfig();
-        UPAttribute attribute = new UPAttribute();
-
-        attribute.setName(ATT_ADDRESS);
-
-        UPAttributeRequired requirements = new UPAttributeRequired();
-
-        requirements.setScopes(Collections.singleton("invalid"));
-
-        attribute.setRequired(requirements);
-
-        attribute.setSelector(new UPAttributeSelector());
-        attribute.getSelector().setScopes(Collections.singleton("invalid"));
-
-        config.addAttribute(attribute);
+        UPConfig config = parseDefaultConfig();
+        config.addOrReplaceAttribute(new UPAttribute(ATT_ADDRESS, new UPAttributePermissions(Set.of(), Set.of(ROLE_USER)),
+                new UPAttributeRequired(Set.of(), Set.of("invalid")), new UPAttributeSelector(Set.of("invalid"))));
 
         try {
-            provider.setConfiguration(JsonSerialization.writeValueAsString(config));
+            provider.setConfiguration(config);
             Assert.fail("Expected to fail due to invalid client scope");
         } catch (ComponentValidationException cve) {
             //ignore
@@ -1559,7 +1527,7 @@ public class UserProfileTest extends AbstractUserProfileTest {
         getTestingClient().server(TEST_REALM_NAME).run((RunOnServer) UserProfileTest::testUsernameAndEmailPermissionNotSetIfEmpty);
     }
 
-    private static void testUsernameAndEmailPermissionNotSetIfEmpty(KeycloakSession session) throws IOException {
+    private static void testUsernameAndEmailPermissionNotSetIfEmpty(KeycloakSession session){
         UserProfileProvider provider = getUserProfileProvider(session);
         UPConfig config = provider.getConfiguration();
 
@@ -1569,7 +1537,7 @@ public class UserProfileTest extends AbstractUserProfileTest {
             }
         }
 
-        provider.setConfiguration(JsonSerialization.writeValueAsString(config));
+        provider.setConfiguration(config);
 
         RealmModel realm = session.getContext().getRealm();
         String username = "profiled-user-profile";
@@ -1602,11 +1570,14 @@ public class UserProfileTest extends AbstractUserProfileTest {
         attributes.put("foo", Arrays.asList("foo"));
 
         UserProfileProvider provider = getUserProfileProvider(session);
+        UPConfig config = parseDefaultConfig();
+        config.removeAttribute(UserModel.FIRST_NAME);
+        config.removeAttribute(UserModel.LAST_NAME);
+        config.addOrReplaceAttribute(new UPAttribute("test-attribute", new UPAttributePermissions(Set.of(), Set.of(ROLE_USER, ROLE_ADMIN))));
+        config.addOrReplaceAttribute(new UPAttribute("foo", new UPAttributePermissions(Set.of(), Set.of(ROLE_USER, ROLE_ADMIN))));
+        config.addOrReplaceAttribute(new UPAttribute("email", new UPAttributePermissions(Set.of(), Set.of(ROLE_USER, ROLE_ADMIN))));
 
-        provider.setConfiguration("{\"attributes\": ["
-                + "{\"name\": \"test-attribute\", \"permissions\": {\"edit\": [\"admin\", \"user\"]}},"
-                + "{\"name\": \"foo\", \"permissions\": {\"edit\": [\"admin\", \"user\"]}},"
-                + "{\"name\": \"email\", \"permissions\": {\"edit\": [\"admin\", \"user\"]}}]}");
+        provider.setConfiguration(config);
 
         UserProfile profile = provider.create(UserProfileContext.USER_API, attributes);
         UserModel user = profile.create();
@@ -1629,46 +1600,42 @@ public class UserProfileTest extends AbstractUserProfileTest {
 
         profile = provider.create(UserProfileContext.USER_API, user);
         Attributes userAttributes = profile.getAttributes();
-        assertEquals("new-email@test.com", userAttributes.getFirstValue(UserModel.EMAIL));
-        assertEquals("Test Value", userAttributes.getFirstValue("test-attribute"));
-        assertEquals("changed", userAttributes.getFirstValue("foo"));
+        assertEquals("new-email@test.com", userAttributes.getFirst(UserModel.EMAIL));
+        assertEquals("Test Value", userAttributes.getFirst("test-attribute"));
+        assertEquals("changed", userAttributes.getFirst("foo"));
 
         attributes.remove("foo");
-        attributes.put("test-attribute", userAttributes.getFirstValue("test-attribute"));
+        attributes.put("test-attribute", userAttributes.getFirst("test-attribute"));
         profile = provider.create(UserProfileContext.USER_API, attributes, user);
         profile.update(true);
         profile = provider.create(UserProfileContext.USER_API, user);
         userAttributes = profile.getAttributes();
         // remove attribute if not set
-        assertEquals("new-email@test.com", userAttributes.getFirstValue(UserModel.EMAIL));
-        assertEquals("Test Value", userAttributes.getFirstValue("test-attribute"));
-        assertNull(userAttributes.getFirstValue("foo"));
+        assertEquals("new-email@test.com", userAttributes.getFirst(UserModel.EMAIL));
+        assertEquals("Test Value", userAttributes.getFirst("test-attribute"));
+        assertNull(userAttributes.getFirst("foo"));
 
-        provider.setConfiguration("{\"attributes\": ["
-                + "{\"name\": \"test-attribute\", \"permissions\": {\"edit\": [\"user\"]}},"
-                + "{\"name\": \"foo\", \"permissions\": {\"edit\": [\"admin\", \"user\"]}},"
-                + "{\"name\": \"email\", \"permissions\": {\"edit\": [\"admin\", \"user\"]}}]}");
+        config.addOrReplaceAttribute(new UPAttribute("test-attribute", new UPAttributePermissions(Set.of(), Set.of(ROLE_USER))));
+        provider.setConfiguration(config);
         attributes.remove("test-attribute");
         profile = provider.create(UserProfileContext.USER_API, attributes, user);
         profile.update(true);
         profile = provider.create(UserProfileContext.USER_API, user);
         userAttributes = profile.getAttributes();
         // do not remove test-attribute because admin does not have write permissions
-        assertEquals("new-email@test.com", userAttributes.getFirstValue(UserModel.EMAIL));
-        assertEquals("Test Value", userAttributes.getFirstValue("test-attribute"));
+        assertEquals("new-email@test.com", userAttributes.getFirst(UserModel.EMAIL));
+        assertEquals("Test Value", userAttributes.getFirst("test-attribute"));
 
-        provider.setConfiguration("{\"attributes\": ["
-                + "{\"name\": \"test-attribute\", \"permissions\": {\"edit\": [\"admin\", \"user\"]}},"
-                + "{\"name\": \"foo\", \"permissions\": {\"edit\": [\"admin\", \"user\"]}},"
-                + "{\"name\": \"email\", \"permissions\": {\"edit\": [\"admin\", \"user\"]}}]}");
+        config.addOrReplaceAttribute(new UPAttribute("test-attribute", new UPAttributePermissions(Set.of(), Set.of(ROLE_USER, ROLE_ADMIN))));
+        provider.setConfiguration(config);
         attributes.remove("test-attribute");
         profile = provider.create(UserProfileContext.USER_API, attributes, user);
         profile.update(true);
         profile = provider.create(UserProfileContext.USER_API, user);
         userAttributes = profile.getAttributes();
         // removes the test-attribute attribute because now admin has write permission
-        assertEquals("new-email@test.com", userAttributes.getFirstValue(UserModel.EMAIL));
-        assertNull(userAttributes.getFirstValue("test-attribute"));
+        assertEquals("new-email@test.com", userAttributes.getFirst(UserModel.EMAIL));
+        assertNull(userAttributes.getFirst("test-attribute"));
     }
 
     @Test
@@ -1685,12 +1652,12 @@ public class UserProfileTest extends AbstractUserProfileTest {
         attributes.put("test-attribute", List.of(""));
 
         UserProfileProvider provider = getUserProfileProvider(session);
-
-        provider.setConfiguration("{\"attributes\": ["
-                + "{\"name\": \"test-attribute\", \"permissions\": {\"edit\": [\"admin\", \"user\"]}},"
-                + "{\"name\": \"firstName\", \"permissions\": {\"edit\": [\"admin\", \"user\"]}},"
-                + "{\"name\": \"lastName\", \"permissions\": {\"edit\": [\"admin\", \"user\"]}},"
-                + "{\"name\": \"email\", \"permissions\": {\"edit\": [\"admin\", \"user\"]}}]}");
+        UPConfig config = parseDefaultConfig();
+        config.addOrReplaceAttribute(new UPAttribute("test-attribute", new UPAttributePermissions(Set.of(), Set.of(ROLE_ADMIN, ROLE_USER))));
+        config.addOrReplaceAttribute(new UPAttribute(UserModel.FIRST_NAME, new UPAttributePermissions(Set.of(), Set.of(ROLE_ADMIN, ROLE_USER))));
+        config.addOrReplaceAttribute(new UPAttribute(UserModel.LAST_NAME, new UPAttributePermissions(Set.of(), Set.of(ROLE_ADMIN, ROLE_USER))));
+        config.addOrReplaceAttribute(new UPAttribute(UserModel.EMAIL, new UPAttributePermissions(Set.of(), Set.of(ROLE_ADMIN, ROLE_USER))));
+        provider.setConfiguration(config);
 
         UserProfile profile = provider.create(UserProfileContext.USER_API, attributes);
         UserModel user = profile.create();
@@ -1711,11 +1678,11 @@ public class UserProfileTest extends AbstractUserProfileTest {
     }
 
     private static void assertRemoveEmptyRootAttribute(Map<String, List<String>> attributes, UserModel user, Attributes upAttributes) {
-        assertNull(upAttributes.getFirstValue(UserModel.LAST_NAME));
+        assertNull(upAttributes.getFirst(UserModel.LAST_NAME));
         assertNull(user.getLastName());
-        assertNull(upAttributes.getFirstValue(UserModel.EMAIL));
+        assertNull(upAttributes.getFirst(UserModel.EMAIL));
         assertNull(user.getEmail());
-        assertEquals(upAttributes.getFirstValue(UserModel.FIRST_NAME), attributes.get(UserModel.FIRST_NAME).get(0));
+        assertEquals(upAttributes.getFirst(UserModel.FIRST_NAME), attributes.get(UserModel.FIRST_NAME).get(0));
     }
 
     @Test
@@ -1723,16 +1690,14 @@ public class UserProfileTest extends AbstractUserProfileTest {
         getTestingClient().server(TEST_REALM_NAME).run((RunOnServer) UserProfileTest::testRemoveOptionalAttributesFromDefaultConfigIfNotSet);
     }
 
-    private static void testRemoveOptionalAttributesFromDefaultConfigIfNotSet(KeycloakSession session) throws IOException {
-        UPConfig config = new UPConfig();
-        UPAttribute attribute = new UPAttribute();
-
-        attribute.setName("foo");
-
-        config.addAttribute(attribute);
+    private static void testRemoveOptionalAttributesFromDefaultConfigIfNotSet(KeycloakSession session) {
+        UPConfig config = parseDefaultConfig();
+        config.addOrReplaceAttribute(new UPAttribute("foo"));
+        config.removeAttribute(UserModel.FIRST_NAME);
+        config.removeAttribute(UserModel.LAST_NAME);
 
         UserProfileProvider provider = getUserProfileProvider(session);
-        provider.setConfiguration(JsonSerialization.writeValueAsString(config));
+        provider.setConfiguration(config);
 
         Map<String, Object> attributes = new HashMap<>();
 
@@ -1748,13 +1713,194 @@ public class UserProfileTest extends AbstractUserProfileTest {
 
         UPAttribute firstName = new UPAttribute();
         firstName.setName(UserModel.FIRST_NAME);
-        config.addAttribute(firstName);
+        config.addOrReplaceAttribute(firstName);
         UPAttribute lastName = new UPAttribute();
         lastName.setName(UserModel.LAST_NAME);
-        config.addAttribute(lastName);
-        provider.setConfiguration(JsonSerialization.writeValueAsString(config));
+        config.addOrReplaceAttribute(lastName);
+        provider.setConfiguration(config);
         profile = provider.create(UserProfileContext.UPDATE_PROFILE, attributes, user);
         assertTrue(profile.getAttributes().contains(UserModel.FIRST_NAME));
         assertTrue(profile.getAttributes().contains(UserModel.LAST_NAME));
     }
+
+    @Test
+    public void testUnmanagedPolicy() {
+        getTestingClient().server(TEST_REALM_NAME).run((RunOnServer) UserProfileTest::testUnmanagedPolicy);
+    }
+
+    private static void testUnmanagedPolicy(KeycloakSession session) {
+        UPConfig config = parseDefaultConfig();
+        config.addOrReplaceAttribute(new UPAttribute("bar", new UPAttributePermissions(Set.of(), Set.of(ROLE_USER, ROLE_ADMIN))));
+        UserProfileProvider provider = getUserProfileProvider(session);
+        provider.setConfiguration(config);
+
+        // can't create attribute if policy is disabled
+        Map<String, Object> attributes = new HashMap<>();
+        attributes.put(UserModel.USERNAME, org.keycloak.models.utils.KeycloakModelUtils.generateId() + "@keycloak.org");
+        attributes.put(UserModel.EMAIL, org.keycloak.models.utils.KeycloakModelUtils.generateId() + "@keycloak.org");
+        attributes.put("foo", List.of("foo"));
+        UserProfile profile = provider.create(UserProfileContext.USER_API, attributes);
+        UserModel user = profile.create();
+        assertFalse(user.getAttributes().containsKey("foo"));
+
+        // user already set with an unmanaged attribute, and it should be visible if policy is adminEdit
+        user.setSingleAttribute("foo", "foo");
+        profile = provider.create(UserProfileContext.USER_API, attributes, user);
+        assertFalse(profile.getAttributes().contains("foo"));
+        config.setUnmanagedAttributePolicy(UnmanagedAttributePolicy.ADMIN_EDIT);
+        provider.setConfiguration(config);
+        profile = provider.create(UserProfileContext.USER_API, attributes, user);
+        assertTrue(profile.getAttributes().contains("foo"));
+        assertFalse(profile.getAttributes().isReadOnly("foo"));
+
+        // user already set with an unmanaged attribute, and it should be visible if policy is adminView but read-only
+        config.setUnmanagedAttributePolicy(UnmanagedAttributePolicy.ADMIN_VIEW);
+        provider.setConfiguration(config);
+        profile = provider.create(UserProfileContext.USER_API, attributes, user);
+        assertTrue(profile.getAttributes().contains("foo"));
+        assertTrue(profile.getAttributes().isReadOnly("foo"));
+
+        // user already set with an unmanaged attribute, but it is not available to user-facing contexts
+        config.setUnmanagedAttributePolicy(UnmanagedAttributePolicy.ADMIN_VIEW);
+        provider.setConfiguration(config);
+        profile = provider.create(UserProfileContext.UPDATE_PROFILE, attributes, user);
+        assertFalse(profile.getAttributes().contains("foo"));
+
+        // user already set with an unmanaged attribute, and it is available to all contexts
+        config.setUnmanagedAttributePolicy(UnmanagedAttributePolicy.ENABLED);
+        provider.setConfiguration(config);
+        profile = provider.create(UserProfileContext.UPDATE_PROFILE, attributes, user);
+        assertTrue(profile.getAttributes().contains("foo"));
+        assertFalse(profile.getAttributes().isReadOnly("foo"));
+        profile = provider.create(UserProfileContext.USER_API, attributes, user);
+        assertTrue(profile.getAttributes().contains("foo"));
+        assertFalse(profile.getAttributes().isReadOnly("foo"));
+    }
+
+    @Test
+    public void testOptionalRootAttributesAsUnmanagedAttribute() {
+        getTestingClient().server(TEST_REALM_NAME).run((RunOnServer) UserProfileTest::testOptionalRootAttributesAsUnmanagedAttribute);
+    }
+
+    private static void testOptionalRootAttributesAsUnmanagedAttribute(KeycloakSession session) {
+        UPConfig config = parseDefaultConfig();
+        UserProfileProvider provider = getUserProfileProvider(session);
+        provider.setConfiguration(config);
+        Map<String, String> rawAttributes = new HashMap<>();
+        rawAttributes.put(UserModel.USERNAME, org.keycloak.models.utils.KeycloakModelUtils.generateId() + "@keycloak.org");
+        rawAttributes.put(UserModel.EMAIL, org.keycloak.models.utils.KeycloakModelUtils.generateId() + "@keycloak.org");
+        rawAttributes.put(UserModel.FIRST_NAME, "firstName");
+        rawAttributes.put(UserModel.LAST_NAME, "lastName");
+        UserProfile profile = provider.create(UserProfileContext.USER_API, rawAttributes);
+        UserModel user = profile.create();
+        assertEquals(rawAttributes.get(UserModel.FIRST_NAME), user.getFirstName());
+        assertEquals(rawAttributes.get(UserModel.LAST_NAME), user.getLastName());
+        AbstractUserRepresentation rep = profile.toRepresentation();
+        assertEquals(rawAttributes.get(UserModel.FIRST_NAME), rep.getFirstName());
+        assertEquals(rawAttributes.get(UserModel.LAST_NAME), rep.getLastName());
+        assertNull(rep.getAttributes());
+
+        config.removeAttribute(UserModel.FIRST_NAME);
+        config.removeAttribute(UserModel.LAST_NAME);
+        provider.setConfiguration(config);
+        profile = provider.create(UserProfileContext.USER_API, user);
+        Attributes attributes = profile.getAttributes();
+        assertNull(attributes.getFirst(UserModel.FIRST_NAME));
+        assertNull(attributes.getFirst(UserModel.LAST_NAME));
+        rep = profile.toRepresentation();
+        assertNull(rep.getFirstName());
+        assertNull(rep.getLastName());
+        assertNull(rep.getAttributes());
+
+        rawAttributes.put(UserModel.FIRST_NAME, "firstName");
+        rawAttributes.put(UserModel.LAST_NAME, "lastName");
+        config.setUnmanagedAttributePolicy(UnmanagedAttributePolicy.ADMIN_EDIT);
+        provider.setConfiguration(config);
+        profile = provider.create(UserProfileContext.USER_API, user);
+        attributes = profile.getAttributes();
+        assertEquals(rawAttributes.get(UserModel.FIRST_NAME), attributes.getFirst(UserModel.FIRST_NAME));
+        assertEquals(rawAttributes.get(UserModel.LAST_NAME), attributes.getFirst(UserModel.LAST_NAME));
+        rep = profile.toRepresentation();
+        assertNull(rep.getFirstName());
+        assertNull(rep.getLastName());
+        assertNull(rep.getAttributes());
+
+        rawAttributes.remove(UserModel.LAST_NAME);
+        rawAttributes.put(UserModel.FIRST_NAME, "firstName");
+        profile = provider.create(UserProfileContext.USER_API, rawAttributes, user);
+        attributes = profile.getAttributes();
+        assertEquals(rawAttributes.get(UserModel.FIRST_NAME), attributes.getFirst(UserModel.FIRST_NAME));
+        assertNull(attributes.getFirst(UserModel.LAST_NAME));
+        rep = profile.toRepresentation();
+        assertNull(rep.getFirstName());
+        assertNull(rep.getLastName());
+        assertNull(rep.getAttributes());
+
+        rawAttributes.put(UserModel.LAST_NAME, "lastNameChanged");
+        rawAttributes.put(UserModel.FIRST_NAME, "firstNameChanged");
+        profile = provider.create(UserProfileContext.USER_API, rawAttributes, user);
+        attributes = profile.getAttributes();
+        assertEquals(rawAttributes.get(UserModel.FIRST_NAME), attributes.getFirst(UserModel.FIRST_NAME));
+        assertEquals(rawAttributes.get(UserModel.LAST_NAME), attributes.getFirst(UserModel.LAST_NAME));
+        rep = profile.toRepresentation();
+        assertNull(rep.getFirstName());
+        assertNull(rep.getLastName());
+        assertNull(rep.getAttributes());
+    }
+
+    @Test
+    public void testAttributeNormalization() {
+        getTestingClient().server(TEST_REALM_NAME).run((RunOnServer) UserProfileTest::testAttributeNormalization);
+    }
+
+    private static void testAttributeNormalization(KeycloakSession session) {
+        UserProfileProvider provider = getUserProfileProvider(session);
+        Map<String, String> attributes = new HashMap<>();
+        attributes.put(UserModel.USERNAME, "TesT");
+        attributes.put(UserModel.EMAIL, "TesT@TesT.org");
+        UserProfile profile = provider.create(UserProfileContext.USER_API, attributes);
+        Attributes profileAttributes = profile.getAttributes();
+        assertEquals(attributes.get(UserModel.USERNAME).toLowerCase(), profileAttributes.getFirst(UserModel.USERNAME));
+        assertEquals(attributes.get(UserModel.EMAIL).toLowerCase(), profileAttributes.getFirst(UserModel.EMAIL));
+    }
+
+    @EnableFeature(Feature.UPDATE_EMAIL)
+    @Test
+    public void testEmailAttributeInUpdateEmailContext() {
+        getTestingClient().server(TEST_REALM_NAME).run((RunOnServer) UserProfileTest::testEmailAttributeInUpdateEmailContext);
+    }
+
+    private static void testEmailAttributeInUpdateEmailContext(KeycloakSession session) {
+        UserProfileProvider provider = getUserProfileProvider(session);
+        String userName = org.keycloak.models.utils.KeycloakModelUtils.generateId();
+        Map<String, String> attributes = new HashMap<>();
+
+        attributes.put(UserModel.USERNAME, userName);
+        attributes.put(UserModel.EMAIL, userName + "@keycloak.org");
+        attributes.put(UserModel.FIRST_NAME, "Joe");
+        attributes.put(UserModel.LAST_NAME, "Doe");
+
+        UserProfile profile = provider.create(UserProfileContext.USER_API, attributes);
+        UserModel user = profile.create();
+
+        profile = provider.create(UserProfileContext.UPDATE_EMAIL, user);
+        containsInAnyOrder(profile.getAttributes().nameSet(), UserModel.EMAIL);
+
+        UPConfig upConfig = provider.getConfiguration();
+        upConfig.addOrReplaceAttribute(new UPAttribute("foo", new UPAttributePermissions(Set.of(), Set.of(UserProfileConstants.ROLE_USER)), new UPAttributeRequired(Set.of(UserProfileConstants.ROLE_USER), Set.of())));
+        provider.setConfiguration(upConfig);
+        profile = provider.create(UserProfileContext.UPDATE_EMAIL, attributes, user);
+        profile.update();
+
+        upConfig = provider.getConfiguration();
+        upConfig.getAttribute(UserModel.EMAIL).getValidations().put(LengthValidator.ID, Map.of("min", "1", "max", "2"));
+        provider.setConfiguration(upConfig);
+        profile = provider.create(UserProfileContext.UPDATE_EMAIL, attributes, user);
+        try {
+            profile.update();
+        } catch (ValidationException ve) {
+            assertTrue(ve.isAttributeOnError(UserModel.EMAIL));
+            assertTrue(ve.hasError(LengthValidator.MESSAGE_INVALID_LENGTH));
+        }
+     }
 }

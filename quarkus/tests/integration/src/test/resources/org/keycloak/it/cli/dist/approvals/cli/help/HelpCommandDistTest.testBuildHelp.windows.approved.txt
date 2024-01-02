@@ -15,6 +15,7 @@ Options:
 
 -h, --help           This help message.
 --help-all           This same help message but with additional options.
+-v, --verbose        Print out error details when running this command.
 
 Cache:
 
@@ -48,7 +49,7 @@ Feature:
                        account2, account3, admin-api, admin-fine-grained-authz, admin2,
                        authorization, ciba, client-policies, client-secret-rotation,
                        declarative-user-profile, device-flow, docker, dpop, dynamic-scopes, fips,
-                       impersonation, js-adapter, kerberos, linkedin-oauth, map-storage, par,
+                       impersonation, js-adapter, kerberos, linkedin-oauth, multi-site, par,
                        preview, recovery-codes, scripts, step-up-authentication, token-exchange,
                        transient-users, update-email, web-authn.
 --features-disabled <feature>
@@ -56,15 +57,18 @@ Feature:
                        account2, account3, admin-api, admin-fine-grained-authz, admin2,
                        authorization, ciba, client-policies, client-secret-rotation,
                        declarative-user-profile, device-flow, docker, dpop, dynamic-scopes, fips,
-                       impersonation, js-adapter, kerberos, linkedin-oauth, map-storage, par,
+                       impersonation, js-adapter, kerberos, linkedin-oauth, multi-site, par,
                        preview, recovery-codes, scripts, step-up-authentication, token-exchange,
                        transient-users, update-email, web-authn.
 
-HTTP/TLS:
+HTTP(S):
 
 --http-relative-path <path>
                      Set the path relative to '/' for serving resources. The path must start with a
                        '/'. Default: /.
+--https-client-auth <auth>
+                     Configures the server to require/request client authentication. Possible
+                       values are: none, request, required. Default: none.
 
 Health:
 
@@ -81,7 +85,7 @@ Metrics:
 
 Vault:
 
---vault <provider>   Enables a vault provider. Possible values are: file.
+--vault <provider>   Enables a vault provider. Possible values are: file, keystore.
 
 Security:
 

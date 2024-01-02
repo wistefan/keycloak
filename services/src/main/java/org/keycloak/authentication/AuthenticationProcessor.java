@@ -37,6 +37,7 @@ import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.UserSessionModel;
+import org.keycloak.models.light.LightweightUserAdapter;
 import org.keycloak.models.utils.AuthenticationFlowResolver;
 import org.keycloak.models.utils.FormMessage;
 import org.keycloak.protocol.LoginProtocol;
@@ -70,7 +71,6 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.keycloak.models.light.LightweightUserAdapter.isLightweightUser;
-import static org.keycloak.utils.LockObjectsForModification.lockUserSessionsForModification;
 
 /**
  * @author <a href="mailto:bill@burkecentral.com">Bill Burke</a>
@@ -1067,12 +1067,17 @@ public class AuthenticationProcessor {
 
         if (userSession == null) { // if no authenticator attached a usersession
 
-            userSession = lockUserSessionsForModification(session, () -> session.sessions().getUserSession(realm, authSession.getParentSession().getId()));
+            userSession = session.sessions().getUserSession(realm, authSession.getParentSession().getId());
             if (userSession == null) {
                 UserSessionModel.SessionPersistenceState persistenceState = UserSessionModel.SessionPersistenceState.fromString(authSession.getClientNote(AuthenticationManager.USER_SESSION_PERSISTENT_STATE));
 
                 userSession = new UserSessionManager(session).createUserSession(authSession.getParentSession().getId(), realm, authSession.getAuthenticatedUser(), username, connection.getRemoteAddr(), authSession.getProtocol()
                         , remember, brokerSessionId, brokerUserId, persistenceState);
+
+                if (isLightweightUser(userSession.getUser())) {
+                    LightweightUserAdapter lua = (LightweightUserAdapter) userSession.getUser();
+                    lua.setOwningUserSessionId(userSession.getId());
+                }
             } else if (userSession.getUser() == null || !AuthenticationManager.isSessionValid(realm, userSession)) {
                 userSession.restartSession(realm, authSession.getAuthenticatedUser(), username, connection.getRemoteAddr(), authSession.getProtocol()
                         , remember, brokerSessionId, brokerUserId);

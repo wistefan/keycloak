@@ -18,6 +18,8 @@
 
 package org.keycloak.testsuite.federation.ldap;
 
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.keycloak.testsuite.forms.VerifyProfileTest.disableDynamicUserProfile;
@@ -71,14 +73,16 @@ public class LDAPAdminRestApiWithUserProfileTest extends LDAPAdminRestApiTest {
 
             UserResource user = testRealm().users().get(newUserId);
             UserRepresentation userRep = user.toRepresentation();
-
-            assertTrue(userRep.getAttributes().containsKey(LDAPConstants.LDAP_ID));
-            assertTrue(userRep.getAttributes().get(LDAPConstants.LDAP_ID).isEmpty());
+            assertNull(userRep.getAttributes());
 
             userRep.singleAttribute(LDAPConstants.LDAP_ID, "");
             user.update(userRep);
+            userRep = testRealm().users().get(newUserId).toRepresentation();
+            assertNull(userRep.getAttributes());
             userRep.singleAttribute(LDAPConstants.LDAP_ID, null);
             user.update(userRep);
+            userRep = testRealm().users().get(newUserId).toRepresentation();
+            assertNull(userRep.getAttributes());
 
             try {
                 userRep.singleAttribute(LDAPConstants.LDAP_ID, "should-fail");
@@ -108,7 +112,7 @@ public class LDAPAdminRestApiWithUserProfileTest extends LDAPAdminRestApiTest {
 
         attribute.setPermissions(permissions);
 
-        upConfig.addAttribute(attribute);
+        upConfig.addOrReplaceAttribute(attribute);
 
         setUserProfileConfiguration(testRealm(), writeValueAsString(upConfig));
     }

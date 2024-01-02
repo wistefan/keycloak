@@ -12,6 +12,7 @@ const Groups = lazy(() => import("./groups/Groups"));
 const PersonalInfo = lazy(() => import("./personal-info/PersonalInfo"));
 const Resources = lazy(() => import("./resources/Resources"));
 const VCIssuer = lazy(() => import("./oidc4vp/VCIssuer"));
+const ContentComponent = lazy(() => import("./content/ContentComponent"));
 
 export const DeviceActivityRoute: RouteObject = {
   path: "account-security/device-activity",
@@ -48,6 +49,15 @@ export const VCIssuerRoute: RouteObject = {
   path: "vc-issuer",
   element: <VCIssuer />,
 };
+export type ContentComponentParams = {
+  componentId: string;
+};
+
+export const ContentRoute: RouteObject = {
+  path: "/content/:componentId",
+  element: <ContentComponent />,
+};
+
 export const PersonalInfoRoute: IndexRouteObject = {
   index: true,
   element: <PersonalInfo />,
@@ -67,6 +77,7 @@ export const RootRoute: RouteObject = {
     PersonalInfoRoute,
     ResourcesRoute,
     VCIssuerRoute,
+    ContentRoute,
   ],
 };
 
