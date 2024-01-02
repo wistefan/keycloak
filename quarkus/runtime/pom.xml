@@ -618,6 +618,14 @@
             <artifactId>nashorn-core</artifactId>
             <version>${nashorn.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.apicatalog</groupId>
+            <artifactId>titanium-json-ld</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.setl</groupId>
+            <artifactId>rdf-urdna</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>junit</groupId>

@@ -60,6 +60,8 @@ public class ClientAuthenticationFlow implements AuthenticationFlow {
     public Response processFlow() {
         List<AuthenticationExecutionModel> executions = findExecutionsToRun();
 
+        logger.infof("The exc %s", executions);
+        executions.forEach(e -> logger.infof("%s", e.getAuthenticator()));
         for (AuthenticationExecutionModel model : executions) {
             ClientAuthenticatorFactory factory = (ClientAuthenticatorFactory) processor.getSession().getKeycloakSessionFactory().getProviderFactory(ClientAuthenticator.class, model.getAuthenticator());
             if (factory == null) {

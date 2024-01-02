@@ -860,7 +860,11 @@ public class AuthenticationProcessor {
     }
 
     public AuthenticationFlow createFlowExecution(String flowId, AuthenticationExecutionModel execution) {
+        logger.infof("Flow id %s", flowId);
         AuthenticationFlowModel flow = realm.getAuthenticationFlowById(flowId);
+        logger.infof("Flow alias %s", flow.getAlias());
+        logger.infof("Desc alias %s", flow.getDescription());
+        logger.infof("Provider alias %s", flow.getProviderId());
         if (flow == null) {
             logger.error("Unknown flow to execute with");
             throw new AuthenticationFlowException(AuthenticationFlowError.INTERNAL_ERROR);

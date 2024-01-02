@@ -114,6 +114,7 @@ import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
+
 import javax.xml.namespace.QName;
 
 import java.io.IOException;
@@ -123,6 +124,9 @@ import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
+
+import static org.keycloak.protocol.oid4vc.issuance.OID4VPIssuerEndpoint.GRANT_TYPE_PRE_AUTHORIZED_CODE;
+import static org.keycloak.utils.LockObjectsForModification.lockUserSessionsForModification;
 
 /**
  * @author <a href="mailto:sthorger@redhat.com">Stian Thorgersen</a>
@@ -137,7 +141,7 @@ public class TokenEndpoint {
     private DPoP dPoP;
 
     private enum Action {
-        AUTHORIZATION_CODE, REFRESH_TOKEN, PASSWORD, CLIENT_CREDENTIALS, TOKEN_EXCHANGE, PERMISSION, OAUTH2_DEVICE_CODE, CIBA
+        AUTHORIZATION_CODE, REFRESH_TOKEN, PASSWORD, CLIENT_CREDENTIALS, TOKEN_EXCHANGE, PERMISSION, OAUTH2_DEVICE_CODE, CIBA, PRE_AUTHORIZED_CODE
     }
 
     private final KeycloakSession session;
@@ -195,7 +199,7 @@ public class TokenEndpoint {
         checkRealm();
         checkGrantType();
 
-        if (!action.equals(Action.PERMISSION)) {
+        if (!action.equals(Action.PERMISSION) && !action.equals(Action.PRE_AUTHORIZED_CODE)) {
             checkClient();
             checkParameterDuplicated();
         }
@@ -203,6 +207,8 @@ public class TokenEndpoint {
         switch (action) {
             case AUTHORIZATION_CODE:
                 return codeToToken();
+            case PRE_AUTHORIZED_CODE:
+              return preauthorizedToToken();
             case REFRESH_TOKEN:
                 return refreshTokenGrant();
             case PASSWORD:
@@ -294,6 +300,9 @@ public class TokenEndpoint {
         } else if (grantType.equals(OAuth2Constants.CIBA_GRANT_TYPE)) {
             event.event(EventType.AUTHREQID_TO_TOKEN);
             action = Action.CIBA;
+        } else if (grantType.equals(GRANT_TYPE_PRE_AUTHORIZED_CODE)) {
+              event.event(EventType.CODE_TO_TOKEN);
+              action = Action.PRE_AUTHORIZED_CODE;
         } else {
             throw newUnsupportedGrantTypeException();
         }
@@ -329,6 +338,52 @@ public class TokenEndpoint {
         }
     }
 
+    public Response preauthorizedToToken() {
+      String code = formParams.getFirst(OAuth2Constants.CODE);
+
+      if (code == null) {
+        event.error(Errors.INVALID_CODE);
+        throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_REQUEST,
+            "Missing parameter: " + OAuth2Constants.CODE, Response.Status.BAD_REQUEST);
+      }
+
+      var result = OAuth2CodeParser.parseCode(session, code, realm, event);
+      if (result.isIllegalCode()) {
+        event.error(Errors.INVALID_CODE);
+        throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_GRANT, "Code not valid",
+            Response.Status.BAD_REQUEST);
+      }
+
+      if (result.isExpiredCode()) {
+        event.error(Errors.EXPIRED_CODE);
+        throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_GRANT, "Code is expired",
+            Response.Status.BAD_REQUEST);
+      }
+      AuthenticatedClientSessionModel clientSession = result.getClientSession();
+
+      var sessionContext = DefaultClientSessionContext.fromClientSessionAndScopeParameter(clientSession,
+          OAuth2Constants.SCOPE_OPENID, session);
+
+      AccessToken accessToken = tokenManager.createClientAccessToken(session,
+          clientSession.getRealm(),
+          clientSession.getClient(),
+          clientSession.getUserSession().getUser(),
+          clientSession.getUserSession(),
+          sessionContext);
+
+      var tokenResponse = tokenManager.responseBuilder(
+              clientSession.getRealm(),
+              clientSession.getClient(),
+              event,
+              session,
+              clientSession.getUserSession(),
+              sessionContext)
+          .accessToken(accessToken).build();
+
+      event.success();
+      return cors.allowAllOrigins().builder(Response.ok(tokenResponse).type(MediaType.APPLICATION_JSON_TYPE)).build();
+    }
+    
     public Response codeToToken() {
         checkAndRetrieveDPoPProof(Profile.isFeatureEnabled(Profile.Feature.DPOP));
 
@@ -574,7 +629,7 @@ public class TokenEndpoint {
             res = responseBuilder.build();
 
             if (!responseBuilder.isOfflineToken()) {
-                UserSessionModel userSession = session.sessions().getUserSession(realm, res.getSessionState());
+                UserSessionModel userSession = lockUserSessionsForModification(session, () -> session.sessions().getUserSession(realm, res.getSessionState()));
                 AuthenticatedClientSessionModel clientSession = userSession.getAuthenticatedClientSessionByClient(client.getId());
                 updateClientSession(clientSession);
                 updateUserSessionFromClientAuth(userSession);
@@ -936,128 +991,129 @@ public class TokenEndpoint {
 
         String subjectToken = formParams.getFirst("subject_token");
 
-        if (accessTokenString == null) {
-            // in case no bearer token is provided, we force client authentication
-            checkClient();
 
-            // if a claim token is provided, we check if the format is a OpenID Connect IDToken and assume the token represents the identity asking for permissions
-            if (AuthorizationTokenService.CLAIM_TOKEN_FORMAT_ID_TOKEN.equalsIgnoreCase(claimTokenFormat)) {
-                accessTokenString = claimToken;
-            } else if (subjectToken != null) {
-                accessTokenString = subjectToken;
-            } else {
-                // Clients need to authenticate in order to obtain a RPT from the server.
-                // In order to support cases where the client is obtaining permissions on its on behalf, we issue a temporary access token
-                accessTokenString = AccessTokenResponse.class.cast(clientCredentialsGrant().getEntity()).getToken();
-            }
-        }
+		if (accessTokenString == null) {
+			// in case no bearer token is provided, we force client authentication
+			checkClient();
 
-        AuthorizationTokenService.KeycloakAuthorizationRequest authorizationRequest = new AuthorizationTokenService.KeycloakAuthorizationRequest(session.getProvider(AuthorizationProvider.class),
-                tokenManager, event, this.request, cors, clientConnection);
+			// if a claim token is provided, we check if the format is a OpenID Connect IDToken and assume the token represents the identity asking for permissions
+			if (AuthorizationTokenService.CLAIM_TOKEN_FORMAT_ID_TOKEN.equalsIgnoreCase(claimTokenFormat)) {
+				accessTokenString = claimToken;
+			} else if (subjectToken != null) {
+				accessTokenString = subjectToken;
+			} else {
+				// Clients need to authenticate in order to obtain a RPT from the server.
+				// In order to support cases where the client is obtaining permissions on its on behalf, we issue a temporary access token
+				accessTokenString = AccessTokenResponse.class.cast(clientCredentialsGrant().getEntity()).getToken();
+			}
+		}
 
-        authorizationRequest.setTicket(formParams.getFirst("ticket"));
-        authorizationRequest.setClaimToken(claimToken);
-        authorizationRequest.setClaimTokenFormat(claimTokenFormat);
-        authorizationRequest.setPct(formParams.getFirst("pct"));
+		AuthorizationTokenService.KeycloakAuthorizationRequest authorizationRequest = new AuthorizationTokenService.KeycloakAuthorizationRequest(session.getProvider(AuthorizationProvider.class),
+				tokenManager, event, this.request, cors, clientConnection);
 
-        String rpt = formParams.getFirst("rpt");
+		authorizationRequest.setTicket(formParams.getFirst("ticket"));
+		authorizationRequest.setClaimToken(claimToken);
+		authorizationRequest.setClaimTokenFormat(claimTokenFormat);
+		authorizationRequest.setPct(formParams.getFirst("pct"));
 
-        if (rpt != null) {
-            AccessToken accessToken = session.tokens().decode(rpt, AccessToken.class);
-            if (accessToken == null) {
-                event.error(Errors.INVALID_REQUEST);
-                throw new CorsErrorResponseException(cors, "invalid_rpt", "RPT signature is invalid", Status.FORBIDDEN);
-            }
+		String rpt = formParams.getFirst("rpt");
 
-            authorizationRequest.setRpt(accessToken);
-        }
+		if (rpt != null) {
+			AccessToken accessToken = session.tokens().decode(rpt, AccessToken.class);
+			if (accessToken == null) {
+				event.error(Errors.INVALID_REQUEST);
+				throw new CorsErrorResponseException(cors, "invalid_rpt", "RPT signature is invalid", Status.FORBIDDEN);
+			}
 
-        authorizationRequest.setScope(formParams.getFirst("scope"));
-        String audienceParam = formParams.getFirst("audience");
-        authorizationRequest.setAudience(audienceParam);
-        authorizationRequest.setSubjectToken(accessTokenString);
+			authorizationRequest.setRpt(accessToken);
+		}
 
-        event.detail(Details.AUDIENCE, audienceParam);
+		authorizationRequest.setScope(formParams.getFirst("scope"));
+		String audienceParam = formParams.getFirst("audience");
+		authorizationRequest.setAudience(audienceParam);
+		authorizationRequest.setSubjectToken(accessTokenString);
 
-        String submitRequest = formParams.getFirst("submit_request");
+		event.detail(Details.AUDIENCE, audienceParam);
 
-        authorizationRequest.setSubmitRequest(submitRequest == null ? true : Boolean.valueOf(submitRequest));
+		String submitRequest = formParams.getFirst("submit_request");
 
-        // permissions have a format like RESOURCE#SCOPE1,SCOPE2
-        List<String> permissions = formParams.get("permission");
+		authorizationRequest.setSubmitRequest(submitRequest == null ? true : Boolean.valueOf(submitRequest));
 
-        if (permissions != null) {
-            event.detail(Details.PERMISSION, String.join("|", permissions));
-            String permissionResourceFormat = formParams.getFirst("permission_resource_format");
-            boolean permissionResourceMatchingUri = Boolean.parseBoolean(formParams.getFirst("permission_resource_matching_uri"));
-            authorizationRequest.addPermissions(permissions, permissionResourceFormat, permissionResourceMatchingUri);
-        }
+		// permissions have a format like RESOURCE#SCOPE1,SCOPE2
+		List<String> permissions = formParams.get("permission");
 
-        Metadata metadata = new Metadata();
+		if (permissions != null) {
+			event.detail(Details.PERMISSION, String.join("|", permissions));
+			String permissionResourceFormat = formParams.getFirst("permission_resource_format");
+			boolean permissionResourceMatchingUri = Boolean.parseBoolean(formParams.getFirst("permission_resource_matching_uri"));
+			authorizationRequest.addPermissions(permissions, permissionResourceFormat, permissionResourceMatchingUri);
+		}
 
-        String responseIncludeResourceName = formParams.getFirst("response_include_resource_name");
+		Metadata metadata = new Metadata();
 
-        if (responseIncludeResourceName != null) {
-            metadata.setIncludeResourceName(Boolean.parseBoolean(responseIncludeResourceName));
-        }
+		String responseIncludeResourceName = formParams.getFirst("response_include_resource_name");
 
-        String responsePermissionsLimit = formParams.getFirst("response_permissions_limit");
+		if (responseIncludeResourceName != null) {
+			metadata.setIncludeResourceName(Boolean.parseBoolean(responseIncludeResourceName));
+		}
 
-        if (responsePermissionsLimit != null) {
-            metadata.setLimit(Integer.parseInt(responsePermissionsLimit));
-        }
+		String responsePermissionsLimit = formParams.getFirst("response_permissions_limit");
 
-        metadata.setResponseMode(formParams.getFirst("response_mode"));
+		if (responsePermissionsLimit != null) {
+			metadata.setLimit(Integer.parseInt(responsePermissionsLimit));
+		}
 
-        authorizationRequest.setMetadata(metadata);
+		metadata.setResponseMode(formParams.getFirst("response_mode"));
 
-        Response authorizationResponse = AuthorizationTokenService.instance().authorize(authorizationRequest);
+		authorizationRequest.setMetadata(metadata);
 
-        event.success();
+		Response authorizationResponse = AuthorizationTokenService.instance().authorize(authorizationRequest);
 
-        return authorizationResponse;
-    }
+		event.success();
 
-    public Response oauth2DeviceCodeToToken() {
-        DeviceGrantType deviceGrantType = new DeviceGrantType(formParams, client, session, this, realm, event, cors);
-        return deviceGrantType.oauth2DeviceFlow();
-    }
+		return authorizationResponse;
+	}
 
-    public Response cibaGrant() {
-        CibaGrantType grantType = new CibaGrantType(formParams, client, session, this, realm, event, cors);
-        return grantType.cibaGrant();
-    }
+	public Response oauth2DeviceCodeToToken() {
+		DeviceGrantType deviceGrantType = new DeviceGrantType(formParams, client, session, this, realm, event, cors);
+		return deviceGrantType.oauth2DeviceFlow();
+	}
 
-    public static class TokenExchangeSamlProtocol extends SamlProtocol {
+	public Response cibaGrant() {
+		CibaGrantType grantType = new CibaGrantType(formParams, client, session, this, realm, event, cors);
+		return grantType.cibaGrant();
+	}
 
-        final SamlClient samlClient;
+	public static class TokenExchangeSamlProtocol extends SamlProtocol {
 
-        public TokenExchangeSamlProtocol(SamlClient samlClient) {
-            this.samlClient = samlClient;
-        }
+		final SamlClient samlClient;
 
-        @Override
-        protected Response buildAuthenticatedResponse(AuthenticatedClientSessionModel clientSession, String redirectUri,
-                                                      Document samlDocument, JaxrsSAML2BindingBuilder bindingBuilder)
-                throws ConfigurationException, ProcessingException, IOException {
-            JaxrsSAML2BindingBuilder.PostBindingBuilder builder = bindingBuilder.postBinding(samlDocument);
+		public TokenExchangeSamlProtocol(SamlClient samlClient) {
+			this.samlClient = samlClient;
+		}
 
-            Element assertionElement;
-            if (samlClient.requiresEncryption()) {
-                assertionElement = DocumentUtil.getElement(builder.getDocument(), new QName(JBossSAMLURIConstants.ASSERTION_NSURI.get(), JBossSAMLConstants.ENCRYPTED_ASSERTION.get()));
-            } else {
-                assertionElement = DocumentUtil.getElement(builder.getDocument(), new QName(JBossSAMLURIConstants.ASSERTION_NSURI.get(), JBossSAMLConstants.ASSERTION.get()));
-            }
-            if (assertionElement == null) {
-                return Response.status(Status.BAD_REQUEST).build();
-            }
-            String assertion = DocumentUtil.getNodeAsString(assertionElement);
-            return Response.ok(assertion, MediaType.APPLICATION_XML_TYPE).build();
-        }
+		@Override
+		protected Response buildAuthenticatedResponse(AuthenticatedClientSessionModel clientSession, String redirectUri,
+													  Document samlDocument, JaxrsSAML2BindingBuilder bindingBuilder)
+				throws ConfigurationException, ProcessingException, IOException {
+			JaxrsSAML2BindingBuilder.PostBindingBuilder builder = bindingBuilder.postBinding(samlDocument);
 
-        @Override
-        protected Response buildErrorResponse(boolean isPostBinding, String destination, JaxrsSAML2BindingBuilder binding, Document document) throws ConfigurationException, ProcessingException, IOException {
-            return Response.status(Status.BAD_REQUEST).build();
-        }
-    }
+			Element assertionElement;
+			if (samlClient.requiresEncryption()) {
+				assertionElement = DocumentUtil.getElement(builder.getDocument(), new QName(JBossSAMLURIConstants.ASSERTION_NSURI.get(), JBossSAMLConstants.ENCRYPTED_ASSERTION.get()));
+			} else {
+				assertionElement = DocumentUtil.getElement(builder.getDocument(), new QName(JBossSAMLURIConstants.ASSERTION_NSURI.get(), JBossSAMLConstants.ASSERTION.get()));
+			}
+			if (assertionElement == null) {
+				return Response.status(Status.BAD_REQUEST).build();
+			}
+			String assertion = DocumentUtil.getNodeAsString(assertionElement);
+			return Response.ok(assertion, MediaType.APPLICATION_XML_TYPE).build();
+		}
+
+		@Override
+		protected Response buildErrorResponse(boolean isPostBinding, String destination, JaxrsSAML2BindingBuilder binding, Document document) throws ConfigurationException, ProcessingException, IOException {
+			return Response.status(Status.BAD_REQUEST).build();
+		}
+	}
 }

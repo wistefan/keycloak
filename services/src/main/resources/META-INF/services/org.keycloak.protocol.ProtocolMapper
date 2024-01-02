@@ -45,3 +45,7 @@ org.keycloak.protocol.saml.mappers.SAMLAudienceResolveProtocolMapper
 org.keycloak.protocol.oidc.mappers.ClaimsParameterTokenMapper
 org.keycloak.protocol.saml.mappers.UserAttributeNameIdMapper
 org.keycloak.protocol.oidc.mappers.ClaimsParameterWithValueIdTokenMapper
+org.keycloak.protocol.oid4vc.issuance.mappers.OID4VPSubjectIdMapper
+org.keycloak.protocol.oid4vc.issuance.mappers.OID4VPStaticClaimMapper
+org.keycloak.protocol.oid4vc.issuance.mappers.OID4VPTargetRoleMapper
+org.keycloak.protocol.oid4vc.issuance.mappers.OID4VPUserAttributeMapper
