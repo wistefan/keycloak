@@ -252,6 +252,7 @@
             <artifactId>mockito-junit-jupiter</artifactId>
             <version>${mockito.junit-jupiter.version}</version>
             <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>io.smallrye.common</groupId>
             <artifactId>smallrye-common-annotation</artifactId>

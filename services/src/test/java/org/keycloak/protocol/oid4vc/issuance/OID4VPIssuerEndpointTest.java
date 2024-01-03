@@ -20,7 +20,6 @@ import org.keycloak.models.*;
 import org.keycloak.protocol.oid4vc.ExpectedResult;
 import org.keycloak.protocol.oid4vc.OID4VPClientRegistrationProviderFactory;
 import org.keycloak.protocol.oid4vc.issuance.mappers.*;
-import org.keycloak.protocol.oid4vc.issuance.signing.FileBasedKeyLoader;
 import org.keycloak.protocol.oid4vc.issuance.signing.JwtSigningService;
 import org.keycloak.protocol.oid4vc.issuance.signing.LDSigningService;
 import org.keycloak.protocol.oid4vc.issuance.signing.SdJwtSigningService;
@@ -32,7 +31,6 @@ import org.keycloak.representations.JsonWebToken;
 import org.keycloak.services.managers.AppAuthManager;
 import org.keycloak.services.managers.AuthenticationManager;
 
-import java.net.URL;
 import java.security.Security;
 import java.time.Clock;
 import java.time.Instant;
@@ -82,8 +80,8 @@ public class OID4VPIssuerEndpointTest {
         when(keyManager.getKey(any(), eq("ec-key"), any(), anyString())).thenReturn(getEd25519Key("ec-key"));
         when(keyManager.getKey(any(), eq("rsa-key"), any(), anyString())).thenReturn(getRsaKey("rsa-key"));
         var ldpSigningService = new LDSigningService(keycloakSession, "ec-key", fixedClock, "Ed25519Signature2018", OBJECT_MAPPER);
-        var jwtSigningService = new JwtSigningService(keycloakSession, "rsa-key", fixedClock, "RS256");
-        var sdJwtSigningService = new SdJwtSigningService(keycloakSession, "rsa-key", fixedClock, "RS256", OBJECT_MAPPER, 3);
+        var jwtSigningService = new JwtSigningService(keycloakSession, "rsa-key", fixedClock, "RS256", ISSUER_DID);
+        var sdJwtSigningService = new SdJwtSigningService(keycloakSession, "rsa-key", fixedClock, "RS256", OBJECT_MAPPER, 3, ISSUER_DID);
 
 
         this.bearerTokenAuthenticator = mock(AppAuthManager.BearerTokenAuthenticator.class);

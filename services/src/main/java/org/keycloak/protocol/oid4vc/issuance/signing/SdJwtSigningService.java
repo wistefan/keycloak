@@ -20,7 +20,7 @@ import java.util.*;
 /**
  * {@link VerifiableCredentialsSigningService} implementing the SD_JWT_VC format. It returns a String, containing
  * the signed SD-JWT
- *
+ * <p>
  * {@see https://drafts.oauth.net/oauth-sd-jwt-vc/draft-ietf-oauth-sd-jwt-vc.html}
  * {@see https://www.ietf.org/archive/id/draft-fett-oauth-selective-disclosure-jwt-02.html}
  *
@@ -28,8 +28,6 @@ import java.util.*;
  */
 public class SdJwtSigningService extends JwtSigningService {
 
-
-    public static final String PROVIDER_ID = "sd-jwt-signing";
     private final ObjectMapper objectMapper;
     private final HashProvider hashProvider;
     private final int decoys;
@@ -43,8 +41,8 @@ public class SdJwtSigningService extends JwtSigningService {
     // TODO: cryptographic key binding is not yet implemented(@see https://www.ietf.org/archive/id/draft-terbu-oauth-sd-jwt-vc-00.html#section-4.2.2.2-3.5.1}.
     // should be added
 
-    public SdJwtSigningService(KeycloakSession keycloakSession, String keyId, Clock clock, String algorithmType, ObjectMapper objectMapper, int decoys) {
-        super(keycloakSession, keyId, clock, algorithmType);
+    public SdJwtSigningService(KeycloakSession keycloakSession, String keyId, Clock clock, String algorithmType, ObjectMapper objectMapper, int decoys, String issuerDid) {
+        super(keycloakSession, keyId, clock, algorithmType, issuerDid);
         this.objectMapper = objectMapper;
         // make configurable
         this.hashProvider = new JavaAlgorithmHashProvider(JavaAlgorithm.SHA256);

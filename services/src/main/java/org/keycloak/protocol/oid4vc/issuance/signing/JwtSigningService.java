@@ -9,6 +9,7 @@ import org.jboss.logging.Logger;
 import org.keycloak.crypto.*;
 import org.keycloak.jose.jws.JWSBuilder;
 import org.keycloak.models.KeycloakSession;
+import org.keycloak.protocol.oid4vc.OID4VPClientRegistrationProvider;
 import org.keycloak.protocol.oid4vc.issuance.signing.jwt_vc.EdDSASignatureSignerContext;
 import org.keycloak.protocol.oid4vc.model.VerifiableCredential;
 import org.keycloak.representations.JsonWebToken;
@@ -37,15 +38,20 @@ import static org.keycloak.protocol.oid4vc.issuance.signing.jwt_vc.EdDSASignatur
  */
 public class JwtSigningService extends SigningService<String> {
 
+    private static final Logger LOGGER = Logger.getLogger(JwtSigningService.class);
 
-    public static final String PROVIDER_ID = "jwt-signing";
     private static final String ID_TEMPLATE = "urn:uuid:%s";
 
     private final SignatureSignerContext signatureSignerContext;
+    protected final String issuerDid;
 
-    public JwtSigningService(KeycloakSession keycloakSession, String keyId, Clock clock, String algorithmType) {
+    public JwtSigningService(KeycloakSession keycloakSession, String keyId, Clock clock, String algorithmType, String issuerDid) {
         super(keycloakSession, keyId, clock, algorithmType);
+        this.issuerDid = issuerDid;
         var signingKey = getKey(keyId, algorithmType);
+        if (signingKey == null) {
+            throw new SigningServiceException(String.format("No key for id  %s available.", keyId));
+        }
         signatureSignerContext = switch (algorithmType) {
             case ED_25519 -> new EdDSASignatureSignerContext(signingKey);
             case Algorithm.RS256, Algorithm.RS384, Algorithm.RS512, Algorithm.PS256, Algorithm.PS384, Algorithm.PS512 ->
@@ -76,14 +82,15 @@ public class JwtSigningService extends SigningService<String> {
         }
         subjectId.ifPresent(id -> jsonWebToken.subject(id.toString()));
         jsonWebToken.setOtherClaims("vc", verifiableCredential);
+
         return signToken(jsonWebToken, "JWT");
     }
 
     protected String signToken(JsonWebToken jsonWebToken, String type) {
-        JWSBuilder jwsBuilder = new JWSBuilder();
-        jwsBuilder.kid(keyId);
-        jwsBuilder.type(type);
-        return jwsBuilder.jsonContent(jsonWebToken).sign(signatureSignerContext);
+
+        return new JWSBuilder()
+                .type(type)
+                .jsonContent(jsonWebToken).sign(signatureSignerContext);
     }
 
 }

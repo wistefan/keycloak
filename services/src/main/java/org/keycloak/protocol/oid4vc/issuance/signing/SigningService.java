@@ -30,4 +30,8 @@ public abstract class SigningService<T> implements VerifiableCredentialsSigningS
         return keycloakSession.keys().getKey(keycloakSession.getContext().getRealm(), kid, KeyUse.SIG, algorithm);
     }
 
+    @Override
+    public void close() {
+        // no-op
+    }
 }

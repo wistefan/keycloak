@@ -25,8 +25,6 @@ import java.util.Date;
  */
 public class LDSigningService extends SigningService<VerifiableCredential> {
 
-    public static final String PROVIDER_ID = "ldp-signing";
-
     private SecuritySuite securitySuite;
 
 

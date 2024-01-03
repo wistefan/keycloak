@@ -4,30 +4,26 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.jboss.logging.Logger;
 import org.keycloak.Config;
+import org.keycloak.component.ComponentModel;
 import org.keycloak.events.EventBuilder;
-import org.keycloak.models.ClientModel;
-import org.keycloak.models.ClientScopeModel;
-import org.keycloak.models.KeycloakSession;
-import org.keycloak.models.KeycloakSessionFactory;
-import org.keycloak.models.ProtocolMapperModel;
-import org.keycloak.models.RealmModel;
+import org.keycloak.models.*;
 import org.keycloak.models.utils.KeycloakModelUtils;
 import org.keycloak.protocol.LoginProtocol;
 import org.keycloak.protocol.LoginProtocolFactory;
 import org.keycloak.protocol.oid4vc.issuance.OID4VPIssuerEndpoint;
-import org.keycloak.protocol.oid4vc.issuance.VCIssuerException;
 import org.keycloak.protocol.oid4vc.issuance.mappers.OID4VPSubjectIdMapper;
 import org.keycloak.protocol.oid4vc.issuance.mappers.OID4VPTargetRoleMapper;
 import org.keycloak.protocol.oid4vc.issuance.mappers.OID4VPUserAttributeMapper;
-import org.keycloak.protocol.oid4vc.issuance.signing.*;
+import org.keycloak.protocol.oid4vc.issuance.signing.VerifiableCredentialsSigningService;
+import org.keycloak.protocol.oid4vc.issuance.signing.VerifiableCredentialsSigningServiceProviderFactory;
 import org.keycloak.protocol.oid4vc.model.Format;
+import org.keycloak.provider.ProviderFactory;
 import org.keycloak.representations.idm.ClientRepresentation;
 import org.keycloak.services.managers.AppAuthManager;
 
 import java.time.Clock;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 
 /**
  * This factory is required to get the capability of creating {@link OID4VPClientModel}.
@@ -61,18 +57,12 @@ public class OID4VPLoginProtocolFactory implements LoginProtocolFactory {
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
-        builtins.put(CLIENT_ROLES_MAPPER,
-                OID4VPTargetRoleMapper.create("id", "client roles"));
-        builtins.put(SUBJECT_ID_MAPPER,
-                OID4VPSubjectIdMapper.create("subject id", "id"));
-        builtins.put(USERNAME_MAPPER,
-                OID4VPUserAttributeMapper.create(USERNAME_MAPPER, "username", "username", false));
-        builtins.put(EMAIL_MAPPER,
-                OID4VPUserAttributeMapper.create(EMAIL_MAPPER, "email", "email", false));
-        builtins.put(FIRST_NAME_MAPPER,
-                OID4VPUserAttributeMapper.create(FIRST_NAME_MAPPER, "firstName", "firstName", false));
-        builtins.put(LAST_NAME_MAPPER,
-                OID4VPUserAttributeMapper.create(LAST_NAME_MAPPER, "lastName", "familyName", false));
+        builtins.put(CLIENT_ROLES_MAPPER, OID4VPTargetRoleMapper.create("id", "client roles"));
+        builtins.put(SUBJECT_ID_MAPPER, OID4VPSubjectIdMapper.create("subject id", "id"));
+        builtins.put(USERNAME_MAPPER, OID4VPUserAttributeMapper.create(USERNAME_MAPPER, "username", "username", false));
+        builtins.put(EMAIL_MAPPER, OID4VPUserAttributeMapper.create(EMAIL_MAPPER, "email", "email", false));
+        builtins.put(FIRST_NAME_MAPPER, OID4VPUserAttributeMapper.create(FIRST_NAME_MAPPER, "firstName", "firstName", false));
+        builtins.put(LAST_NAME_MAPPER, OID4VPUserAttributeMapper.create(LAST_NAME_MAPPER, "lastName", "familyName", false));
     }
 
     @Override
@@ -90,108 +80,31 @@ public class OID4VPLoginProtocolFactory implements LoginProtocolFactory {
         return builtins;
     }
 
+    private void addServiceFromComponent(Map<Format, VerifiableCredentialsSigningService> signingServices, KeycloakSession keycloakSession, ComponentModel componentModel) {
+        ProviderFactory<VerifiableCredentialsSigningService> factory = keycloakSession
+                .getKeycloakSessionFactory()
+                .getProviderFactory(VerifiableCredentialsSigningService.class, componentModel.getProviderId());
+        if (factory instanceof VerifiableCredentialsSigningServiceProviderFactory sspf) {
+            signingServices.put(sspf.supportedFormat(), sspf.create(keycloakSession, componentModel));
+        } else {
+            throw new IllegalArgumentException(String.format("The component %s is not a VerifiableCredentialsSigningServiceProviderFactory", componentModel.getProviderId()));
+        }
+
+    }
+
     @Override
     public Object createProtocolEndpoint(KeycloakSession keycloakSession, EventBuilder event) {
         LOGGER.info("Create vc-issuer protocol endpoint");
 
         Map<Format, VerifiableCredentialsSigningService> signingServices = new HashMap<>();
-
-        // handle ldp-proofs
-        boolean vcmdEnabled = Optional.ofNullable(keycloakSession.getContext().getRealm().getAttribute("vcdmEnabled")).map(Boolean::valueOf).orElse(false);
-        Optional<String> ldpProofType = Optional.ofNullable(keycloakSession.getContext().getRealm().getAttribute("ldpProofType"));
-        Optional<String> vcmdKeyPath = Optional.ofNullable(keycloakSession.getContext().getRealm().getAttribute("vcdmKeyPath"));
-        Optional<String> vcmdKeyId = Optional.ofNullable(keycloakSession.getContext().getRealm().getAttribute("vcmdKeyId"));
-
-        if (vcmdEnabled) {
-            if (ldpProofType.isEmpty() || vcmdKeyPath.isEmpty() || vcmdKeyId.isEmpty()) {
-                throw new IllegalArgumentException(
-                        String.format("VCDM credentials are not properly configured. ldpProofType: %s, vcdmKeyPath: %s, vcmdKeyId: %s",
-                                ldpProofType,
-                                vcmdKeyPath,
-                                vcmdKeyId));
-            }
-            try {
-                signingServices.put(Format.LDP_VC, new LDSigningService(
-                        keycloakSession,
-                        vcmdKeyId.get(),
-                        clock,
-                        ldpProofType.get(),
-                        OBJECT_MAPPER));
-            } catch (SigningServiceException e) {
-                LOGGER.warn("Was not able to initialize LD SigningService, ld credentials are not supported.", e);
-                throw new IllegalArgumentException("No valid ldp_vc signing configured.", e);
-
-            }
-        }
-        // handle jwt-vcs
-        boolean jwtVcEnabled = Optional.ofNullable(keycloakSession.getContext().getRealm().getAttribute("jwtVcEnabled")).map(Boolean::valueOf).orElse(false);
-        Optional<String> jwtVcSignatureType = Optional.ofNullable(keycloakSession.getContext().getRealm().getAttribute("jwtVcSignatureType"));
-        Optional<String> jwtVcKeyPath = Optional.ofNullable(keycloakSession.getContext().getRealm().getAttribute("jwtVcKeyPath"));
-        Optional<String> jwtVcKeyId = Optional.ofNullable(keycloakSession.getContext().getRealm().getAttribute("jwtVcKeyId"));
-
-        if (jwtVcEnabled) {
-            if (jwtVcSignatureType.isEmpty() || jwtVcKeyPath.isEmpty() || jwtVcKeyId.isEmpty()) {
-                throw new IllegalArgumentException(
-                        String.format("VCDM credentials are not properly configured. jwtVcSignatureType: %s, jwtVcKeyPath: %s, jwtVcKeyId: %s",
-                                jwtVcSignatureType,
-                                jwtVcKeyPath,
-                                jwtVcKeyId));
-            }
-            try {
-                signingServices.put(Format.JWT_VC, new JwtSigningService(
-                        keycloakSession,
-                        jwtVcKeyId.get(),
-                        clock,
-                        jwtVcSignatureType.get()));
-            } catch (SigningServiceException e) {
-                LOGGER.warn("Was not able to initialize JWT-VC SigningService, jwt-vc credentials are not supported.", e);
-                throw new IllegalArgumentException("No valid jwt-vc signing configured.", e);
-
-            }
-        }
-
-        // handle jwt-vcs
-        boolean sdJwtVcEnabled = Optional.ofNullable(keycloakSession.getContext().getRealm().getAttribute("sdJwtVcEnabled")).map(Boolean::valueOf).orElse(false);
-        Optional<String> sdJwtVcSignatureType = Optional.ofNullable(keycloakSession.getContext().getRealm().getAttribute("sdJwtVcSignatureType"));
-        Optional<String> sdJwtVcKeyPath = Optional.ofNullable(keycloakSession.getContext().getRealm().getAttribute("sdJwtVcKeyPath"));
-        Optional<String> sdJwtVcKeyId = Optional.ofNullable(keycloakSession.getContext().getRealm().getAttribute("sdJwtVcKeyId"));
-        int sdJwtDecoys = Optional.ofNullable(keycloakSession.getContext().getRealm().getAttribute("sdJwtDecoys")).map(Integer::valueOf).orElse(0);
-
-
-        if (sdJwtVcEnabled) {
-            if (sdJwtVcSignatureType.isEmpty() || sdJwtVcKeyPath.isEmpty() || sdJwtVcKeyId.isEmpty()) {
-                throw new IllegalArgumentException(
-                        String.format("SD-JWT credentials are not properly configured. sdJwtVcSignatureType: %s, sdJwtVcKeyPath: %s, sdJwtVcKeyId: %s",
-                                sdJwtVcSignatureType,
-                                sdJwtVcKeyPath,
-                                sdJwtVcKeyId));
-            }
-            try {
-                signingServices.put(Format.SD_JWT_VC, new SdJwtSigningService(
-                        keycloakSession,
-                        sdJwtVcKeyId.get(),
-                        clock,
-                        sdJwtVcSignatureType.get(),
-                        OBJECT_MAPPER,
-                        sdJwtDecoys));
-            } catch (SigningServiceException e) {
-                LOGGER.warn("Was not able to initialize SD-JWT-VC SigningService, sd-jwt-vc credentials are not supported.", e);
-                throw new IllegalArgumentException("No valid sd-jwt-vc signing configured.", e);
-
-            }
-        }
+        var realm = keycloakSession.getContext().getRealm();
+        realm.getComponentsStream(realm.getId(), VerifiableCredentialsSigningServiceProviderFactory.class.getName())
+                .forEach(cm -> addServiceFromComponent(signingServices, keycloakSession, cm));
 
         String issuerDid = Optional.ofNullable(keycloakSession.getContext().getRealm().getAttribute("issuerDid"))
                 .orElseThrow(() -> new VCIssuerException("No issuerDid  configured."));
 
-
-        return new OID4VPIssuerEndpoint(
-                keycloakSession,
-                issuerDid,
-                signingServices,
-                new AppAuthManager.BearerTokenAuthenticator(
-                        keycloakSession),
-                OBJECT_MAPPER, clock);
+        return new OID4VPIssuerEndpoint(keycloakSession, issuerDid, signingServices, new AppAuthManager.BearerTokenAuthenticator(keycloakSession), OBJECT_MAPPER, clock);
     }
 
     @Override
@@ -202,8 +115,7 @@ public class OID4VPLoginProtocolFactory implements LoginProtocolFactory {
         if (naturalPersonScope == null) {
             LOGGER.debug("Add natural person scope");
             naturalPersonScope = newRealm.addClientScope("natural_person");
-            naturalPersonScope.setDescription(
-                    "OIDC$VP Scope, that adds all properties required for a natural person.");
+            naturalPersonScope.setDescription("OIDC$VP Scope, that adds all properties required for a natural person.");
             naturalPersonScope.setProtocol(PROTOCOL_ID);
             naturalPersonScope.addProtocolMapper(builtins.get(SUBJECT_ID_MAPPER));
             naturalPersonScope.addProtocolMapper(builtins.get(CLIENT_ROLES_MAPPER));
