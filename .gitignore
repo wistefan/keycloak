@@ -29,6 +29,7 @@ nbproject
 # VS Code #
 ###########
 *.code-workspace
+.vscode/settings.json
 
 # Compiled source #
 ###################
@@ -101,3 +102,8 @@ node_modules
 
 # JENV
 .java-version
+
+# Generated bin directories
+services/bin
+testsuite/integration-arquillian/servers/app-server/jboss/galleon/bin
+testsuite/integration-arquillian/servers/app-server/jetty/94/bin
