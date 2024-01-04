@@ -11,7 +11,7 @@ const Applications = lazy(() => import("./applications/Applications"));
 const Groups = lazy(() => import("./groups/Groups"));
 const PersonalInfo = lazy(() => import("./personal-info/PersonalInfo"));
 const Resources = lazy(() => import("./resources/Resources"));
-const VCIssuer = lazy(() => import("./oidc4vp/VCIssuer"));
+const VCIssuer = lazy(() => import("./oid4vp/VCIssuer"));
 const ContentComponent = lazy(() => import("./content/ContentComponent"));
 
 export const DeviceActivityRoute: RouteObject = {

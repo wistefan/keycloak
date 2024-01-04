@@ -24,7 +24,7 @@ public abstract class OID4VPMapper implements ProtocolMapper {
 
     protected ProtocolMapperModel mapperModel;
 
-    private static final List<ProviderConfigProperty> OIDC4VP_CONFIG_PROPERTIES = new ArrayList<>();
+    private static final List<ProviderConfigProperty> OID4VC_CONFIG_PROPERTIES = new ArrayList<>();
 
     protected OID4VPMapper() {
         ProviderConfigProperty supportedCredentialsConfig = new ProviderConfigProperty();
@@ -34,15 +34,15 @@ public abstract class OID4VPMapper implements ProtocolMapper {
         supportedCredentialsConfig.setHelpText(
                 "Types of Credentials to apply the mapper. Needs to be a comma-seperated list.");
         supportedCredentialsConfig.setName(SUPPORTED_CREDENTIALS_KEY);
-        OIDC4VP_CONFIG_PROPERTIES.clear();
-        OIDC4VP_CONFIG_PROPERTIES.add(supportedCredentialsConfig);
+        OID4VC_CONFIG_PROPERTIES.clear();
+        OID4VC_CONFIG_PROPERTIES.add(supportedCredentialsConfig);
     }
 
     protected abstract List<ProviderConfigProperty> getIndividualConfigProperties();
 
     @Override
     public List<ProviderConfigProperty> getConfigProperties() {
-        return Stream.concat(OIDC4VP_CONFIG_PROPERTIES.stream(), getIndividualConfigProperties().stream()).toList();
+        return Stream.concat(OID4VC_CONFIG_PROPERTIES.stream(), getIndividualConfigProperties().stream()).toList();
     }
 
     public OID4VPMapper setMapperModel(ProtocolMapperModel mapperModel) {
@@ -62,7 +62,7 @@ public abstract class OID4VPMapper implements ProtocolMapper {
 
     @Override
     public String getDisplayCategory() {
-        return "OIDC4VP Mapper";
+        return "OID4VC Mapper";
     }
 
     @Override

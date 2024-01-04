@@ -138,7 +138,7 @@ const VCIssuer = () => {
       }
      
       
-      const requestUrl = vcState.credentialIssuer!.credential_issuer + "/protocol/oidc4vp/credential-offer-uri?credentialId=" + supportedCredential.id
+      const requestUrl = vcState.credentialIssuer!.credential_issuer + "/protocol/oid4vp/credential-offer-uri?credentialId=" + supportedCredential.id
 
       
       getAccessToken()
@@ -162,7 +162,7 @@ const VCIssuer = () => {
             addError("Did not receive an offer.");
             addAlert(response.status + ":" + response.statusText)
           } else {
-            const credUrl = "openid-credential-offer://?credential_offer_uri=" + encodeURIComponent(offerURI.issuer + "/protocol/oidc4vp/credential-offer/" + offerURI.nonce)
+            const credUrl = "openid-credential-offer://?credential_offer_uri=" + encodeURIComponent(offerURI.issuer + "/protocol/oid4vp/credential-offer/" + offerURI.nonce)
             console.log(credUrl)
             setState({ ...vcState,
               offerUrl: credUrl,
@@ -208,7 +208,7 @@ const VCIssuer = () => {
                     <Button 
                       onClick={() => requestVCOffer()}
                       isDisabled={vcState.isDisabled}>
-                      Initiate Credential-Issuance(OIDC4CI)
+                      Initiate Credential-Issuance(OID4VCI)
                     </Button>
                   </ActionListItem>
                 </ActionList>

@@ -13,7 +13,7 @@ import org.keycloak.protocol.LoginProtocol;
 import org.keycloak.sessions.AuthenticationSessionModel;
 
 /**
- * Empty implementation of the OIDC4VPLoginProtocol. Its required to be available for integration with the client-registration.
+ * Empty implementation of the OID4VCLoginProtocol. Its required to be available for integration with the client-registration.
  * Since we do not support any additional functionality(like logging into Keycloak with SIOP-2), its an empty default
  * implementation.
  *

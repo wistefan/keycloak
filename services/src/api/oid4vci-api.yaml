@@ -7,7 +7,7 @@ externalDocs:
   description: API Documentation
   url: https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html
 tags:
-  - name: OIDC4VCI
+  - name: OID4VCI
     description: Endpoints defined by the OpenID for Verifiable Credential Issuance spec
   - name: IssuerPlugin
     description: Endpoints provided by the plugin for convenience, but not defined by the spec
@@ -30,7 +30,7 @@ paths:
   /.well-known/openid-credential-issuer:
     get:
       tags:
-        - OIDC4VCI
+        - OID4VCI
       operationId: getIssuerMetadata
       description: "https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-issuer-metadata-"
       summary: Return the issuer metadata
@@ -44,7 +44,7 @@ paths:
   /credential:
     post:
       tags:
-        - OIDC4VCI
+        - OID4VCI
       operationId: requestCredential
       summary: Request a credential from the issuer
       description: "https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-request"
@@ -71,7 +71,7 @@ paths:
   /.well-known/openid-configuration:
     get:
       tags:
-        - OIDC4VCI
+        - OID4VCI
       operationId: getOpenIdConfig
       summary: provide SIOP-2 metadata
       responses:
@@ -85,7 +85,7 @@ paths:
   /token:
     post:
       tags:
-        - OIDC4VCI
+        - OID4VCI
       description: Token endpoint to exchange pre_authorized codes for access tokens.
       requestBody:
         description: The token request to be exchanged
@@ -130,10 +130,10 @@ paths:
     get:
       tags:
         - IssuerPlugin
-        - OIDC4VCI
+        - OID4VCI
       parameters:
         - $ref: '#/components/parameters/VcId'
-      description: Endpoint to retrieve a nonce for an OIDC4VCI compliant offer, that can f.e. be used in QR-Code presented to a compliant wallet.
+      description: Endpoint to retrieve a nonce for an OID4VCI compliant offer, that can f.e. be used in QR-Code presented to a compliant wallet.
       operationId: getCredentialOfferURI
       responses:
         '200':
@@ -153,10 +153,10 @@ paths:
     get:
       tags:
         - IssuerPlugin
-        - OIDC4VCI
+        - OID4VCI
       parameters:
         - $ref: '#/components/parameters/CredentialOfferNonce'
-      description: Endpoint to retrieve an OIDC4VCI compliant offer
+      description: Endpoint to retrieve an OID4VCI compliant offer
       operationId: getCredentialOffer
       responses:
         '200':

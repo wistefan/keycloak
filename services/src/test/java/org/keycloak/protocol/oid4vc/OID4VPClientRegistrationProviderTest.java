@@ -43,7 +43,7 @@ public class OID4VPClientRegistrationProviderTest {
 
     @DisplayName("Validate that SIOP-2 clients are properly translated to ClientRepresentations")
     @ParameterizedTest
-    @MethodSource("provideOIDC4VPClients")
+    @MethodSource("provideOID4VPClients")
     public void testToClientRepresentation(OID4VPClient toTest, ExpectedResult<ClientRepresentation> expectedResult)
             throws IllegalAccessException {
         String errorMessage = compare(expectedResult.getExpectedResult(),
@@ -52,7 +52,7 @@ public class OID4VPClientRegistrationProviderTest {
                 expectedResult.getMessage(), errorMessage));
     }
 
-    private static Stream<Arguments> provideOIDC4VPClients() {
+    private static Stream<Arguments> provideOID4VPClients() {
         return Stream.of(
                 Arguments.of(
                         new OID4VPClient("did:test:did", null, null, null, null, null),

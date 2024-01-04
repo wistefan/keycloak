@@ -11,7 +11,7 @@ public class OID4VPMapperFactory {
 		// prevent instantiation
 	}
 
-	public static OID4VPMapper createOIDC4VPMapper(ProtocolMapperModel mapperModel) {
+	public static OID4VPMapper createOID4VCMapper(ProtocolMapperModel mapperModel) {
 		return switch (mapperModel.getProtocolMapper()) {
 			case OID4VPTargetRoleMapper.MAPPER_ID -> new OID4VPTargetRoleMapper().setMapperModel(mapperModel);
 			case OID4VPSubjectIdMapper.MAPPER_ID -> new OID4VPSubjectIdMapper().setMapperModel(mapperModel);

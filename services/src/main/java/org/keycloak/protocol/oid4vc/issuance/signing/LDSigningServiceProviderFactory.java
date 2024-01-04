@@ -13,7 +13,7 @@ import java.util.List;
 /**
  * @author <a href="https://github.com/wistefan">Stefan Wiedemann</a>
  */
-public class LDSigningServiceProviderFactory extends VerifiableCredentialsSigningServiceProviderFactory {
+public class LDSigningServiceProviderFactory extends VCSigningServiceProviderFactory {
     public static final Format SUPPORTED_FORMAT = Format.LDP_VC;
     private static final String HELP_TEXT = "Issues Verifiable Credentials in the W3C Data Model, using Linked-Data Proofs. See https://www.w3.org/TR/vc-data-model/";
 
@@ -31,7 +31,7 @@ public class LDSigningServiceProviderFactory extends VerifiableCredentialsSignin
 
     @Override
     public List<ProviderConfigProperty> getConfigProperties() {
-        return VerifiableCredentialsSigningServiceProviderFactory.configurationBuilder()
+        return VCSigningServiceProviderFactory.configurationBuilder()
                 .property(SigningProperties.PROOF_TYPE.asConfigProperty())
                 .build();
     }

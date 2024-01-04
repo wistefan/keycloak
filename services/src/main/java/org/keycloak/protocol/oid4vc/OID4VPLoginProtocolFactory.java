@@ -1,6 +1,5 @@
 package org.keycloak.protocol.oid4vc;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.jboss.logging.Logger;
 import org.keycloak.Config;
@@ -11,11 +10,12 @@ import org.keycloak.models.utils.KeycloakModelUtils;
 import org.keycloak.protocol.LoginProtocol;
 import org.keycloak.protocol.LoginProtocolFactory;
 import org.keycloak.protocol.oid4vc.issuance.OID4VPIssuerEndpoint;
+import org.keycloak.protocol.oid4vc.issuance.VCIssuerException;
 import org.keycloak.protocol.oid4vc.issuance.mappers.OID4VPSubjectIdMapper;
 import org.keycloak.protocol.oid4vc.issuance.mappers.OID4VPTargetRoleMapper;
 import org.keycloak.protocol.oid4vc.issuance.mappers.OID4VPUserAttributeMapper;
+import org.keycloak.protocol.oid4vc.issuance.signing.VCSigningServiceProviderFactory;
 import org.keycloak.protocol.oid4vc.issuance.signing.VerifiableCredentialsSigningService;
-import org.keycloak.protocol.oid4vc.issuance.signing.VerifiableCredentialsSigningServiceProviderFactory;
 import org.keycloak.protocol.oid4vc.model.Format;
 import org.keycloak.provider.ProviderFactory;
 import org.keycloak.representations.idm.ClientRepresentation;
@@ -24,6 +24,7 @@ import org.keycloak.services.managers.AppAuthManager;
 import java.time.Clock;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * This factory is required to get the capability of creating {@link OID4VPClientModel}.
@@ -36,7 +37,7 @@ public class OID4VPLoginProtocolFactory implements LoginProtocolFactory {
 
     private static final Logger LOGGER = Logger.getLogger(OID4VPLoginProtocolFactory.class);
 
-    public static final String PROTOCOL_ID = "oidc4vp";
+    public static final String PROTOCOL_ID = "oid4vp";
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final String CLIENT_ROLES_MAPPER = "client-roles";
@@ -52,11 +53,6 @@ public class OID4VPLoginProtocolFactory implements LoginProtocolFactory {
 
     @Override
     public void init(Config.Scope config) {
-        try {
-            LOGGER.infof("Initiate the protocol factory. Config is %s", OBJECT_MAPPER.writeValueAsString(config));
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
-        }
         builtins.put(CLIENT_ROLES_MAPPER, OID4VPTargetRoleMapper.create("id", "client roles"));
         builtins.put(SUBJECT_ID_MAPPER, OID4VPSubjectIdMapper.create("subject id", "id"));
         builtins.put(USERNAME_MAPPER, OID4VPUserAttributeMapper.create(USERNAME_MAPPER, "username", "username", false));
@@ -84,7 +80,7 @@ public class OID4VPLoginProtocolFactory implements LoginProtocolFactory {
         ProviderFactory<VerifiableCredentialsSigningService> factory = keycloakSession
                 .getKeycloakSessionFactory()
                 .getProviderFactory(VerifiableCredentialsSigningService.class, componentModel.getProviderId());
-        if (factory instanceof VerifiableCredentialsSigningServiceProviderFactory sspf) {
+        if (factory instanceof VCSigningServiceProviderFactory sspf) {
             signingServices.put(sspf.supportedFormat(), sspf.create(keycloakSession, componentModel));
         } else {
             throw new IllegalArgumentException(String.format("The component %s is not a VerifiableCredentialsSigningServiceProviderFactory", componentModel.getProviderId()));
@@ -94,11 +90,10 @@ public class OID4VPLoginProtocolFactory implements LoginProtocolFactory {
 
     @Override
     public Object createProtocolEndpoint(KeycloakSession keycloakSession, EventBuilder event) {
-        LOGGER.info("Create vc-issuer protocol endpoint");
 
         Map<Format, VerifiableCredentialsSigningService> signingServices = new HashMap<>();
         var realm = keycloakSession.getContext().getRealm();
-        realm.getComponentsStream(realm.getId(), VerifiableCredentialsSigningServiceProviderFactory.class.getName())
+        realm.getComponentsStream(realm.getId(), VerifiableCredentialsSigningService.class.getName())
                 .forEach(cm -> addServiceFromComponent(signingServices, keycloakSession, cm));
 
         String issuerDid = Optional.ofNullable(keycloakSession.getContext().getRealm().getAttribute("issuerDid"))

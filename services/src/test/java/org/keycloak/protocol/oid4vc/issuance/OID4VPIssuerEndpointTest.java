@@ -342,7 +342,7 @@ public class OID4VPIssuerEndpointTest {
     private static Stream<Arguments> provideUserAndClientsJWT(Format theFormat) {
         return Stream.of(
                 getArguments(getUserModel("e@mail.org", "Happy", "User"),
-                        Map.of(getOidc4VpClient("did:key:1",
+                        Map.of(getOid4VpClient("did:key:1",
                                         Map.of("vctypes_MyType", theFormat.toString()),
                                         List.of("MyRole"),
                                         List.of("MyType", "VerifiableCredential"),
@@ -355,7 +355,7 @@ public class OID4VPIssuerEndpointTest {
                                 "A valid Credential should have been returned.")
                 ),
                 getArguments(getUserModel("e@mail.org", null, "User"),
-                        Map.of(getOidc4VpClient("did:key:1",
+                        Map.of(getOid4VpClient("did:key:1",
                                         Map.of("vctypes_MyType", theFormat.toString()),
                                         List.of("MyRole"),
                                         List.of("MyType", "VerifiableCredential"),
@@ -369,7 +369,7 @@ public class OID4VPIssuerEndpointTest {
                 ),
                 getArguments(
                         getUserModel("e@mail.org", null, null),
-                        Map.of(getOidc4VpClient("did:key:1",
+                        Map.of(getOid4VpClient("did:key:1",
                                         Map.of("vctypes_MyType", theFormat.toString()),
                                         List.of("MyRole"),
                                         List.of("MyType", "VerifiableCredential"),
@@ -383,7 +383,7 @@ public class OID4VPIssuerEndpointTest {
                 ),
                 getArguments(
                         getUserModel(null, null, null),
-                        Map.of(getOidc4VpClient("did:key:1",
+                        Map.of(getOid4VpClient("did:key:1",
                                         Map.of("vctypes_MyType", theFormat.toString()),
                                         List.of("MyRole"),
                                         List.of("MyType", "VerifiableCredential"),
@@ -397,7 +397,7 @@ public class OID4VPIssuerEndpointTest {
                 ),
                 getArguments(
                         getUserModel(null, null, null),
-                        Map.of(getOidc4VpClient("did:key:1",
+                        Map.of(getOid4VpClient("did:key:1",
                                         Map.of("vctypes_MyType", theFormat.toString()),
                                         List.of("MyRole", "MySecondRole"),
                                         List.of("MyType", "VerifiableCredential"),
@@ -411,7 +411,7 @@ public class OID4VPIssuerEndpointTest {
                 ),
                 getArguments(
                         getUserModel(null, null, null),
-                        Map.of(getOidc4VpClient("did:key:1",
+                        Map.of(getOid4VpClient("did:key:1",
                                         Map.of("vctypes_MyType", theFormat.toString()),
                                         List.of("MyRole", "MySecondRole"),
                                         List.of("MyType", "VerifiableCredential"),
@@ -425,13 +425,13 @@ public class OID4VPIssuerEndpointTest {
                 ),
                 getArguments(
                         getUserModel(null, null, null),
-                        Map.of(getOidc4VpClient("did:key:1",
+                        Map.of(getOid4VpClient("did:key:1",
                                         Map.of("vctypes_MyType", theFormat.toString()),
                                         List.of("MyRole", "MySecondRole"),
                                         List.of("MyType", "VerifiableCredential"),
                                         theFormat == Format.JWT_VC),
                                 List.of(getRoleModel("MyRole"), getRoleModel("MySecondRole")),
-                                getOidc4VpClient("did:key:2",
+                                getOid4VpClient("did:key:2",
                                         Map.of("vctypes_MyType", theFormat.toString()),
                                         List.of("AnotherRole"),
                                         List.of("MyType", "VerifiableCredential"),
@@ -446,13 +446,13 @@ public class OID4VPIssuerEndpointTest {
                 ),
                 getArguments(
                         getUserModel(null, null, null),
-                        Map.of(getOidc4VpClient("did:key:1",
+                        Map.of(getOid4VpClient("did:key:1",
                                         Map.of("vctypes_MyType", theFormat.toString()),
                                         List.of("MyRole", "MySecondRole"),
                                         List.of("MyType", "VerifiableCredential"),
                                         theFormat == Format.JWT_VC),
                                 List.of(getRoleModel("MyRole"), getRoleModel("MySecondRole")),
-                                getOidc4VpClient("did:key:2",
+                                getOid4VpClient("did:key:2",
                                         Map.of("vctypes_AnotherType", theFormat.toString()),
                                         List.of("AnotherRole"),
                                         List.of("AnotherType", "VerifiableCredential"),
@@ -466,14 +466,14 @@ public class OID4VPIssuerEndpointTest {
                 ),
                 getArguments(
                         getUserModel(null, null, null),
-                        Map.of(getOidc4VpClient("did:key:1",
+                        Map.of(getOid4VpClient("did:key:1",
                                         Map.of("vctypes_MyType", theFormat.toString()),
                                         List.of("MyRole", "MySecondRole"),
                                         Map.of("more", "claims"),
                                         List.of("MyType", "VerifiableCredential"),
                                         theFormat == Format.JWT_VC),
                                 List.of(getRoleModel("MyRole"), getRoleModel("MySecondRole")),
-                                getOidc4VpClient("did:key:2",
+                                getOid4VpClient("did:key:2",
                                         Map.of("vctypes_MyType", theFormat.toString()),
                                         List.of("AnotherRole"),
                                         Map.of("additional", "claim"),
@@ -490,13 +490,13 @@ public class OID4VPIssuerEndpointTest {
                 ),
                 getArguments(
                         getUserModel(null, null, null),
-                        Map.of(getOidc4VpClient("did:key:1",
+                        Map.of(getOid4VpClient("did:key:1",
                                         Map.of("vctypes_MyType", theFormat.toString()),
                                         List.of("MyRole", "MySecondRole"),
                                         List.of("MyType", "VerifiableCredential"),
                                         theFormat == Format.JWT_VC),
                                 List.of(getRoleModel("MyRole"), getRoleModel("MySecondRole")),
-                                getOidc4VpClient("did:key:2",
+                                getOid4VpClient("did:key:2",
                                         Map.of("vctypes_MyType", theFormat.toString()),
                                         List.of("AnotherRole"),
                                         Map.of("additional", "claim"),
@@ -516,7 +516,7 @@ public class OID4VPIssuerEndpointTest {
     private static Stream<Arguments> provideUserAndClientsLDP() {
         return Stream.of(
                 getArguments(getUserModel("e@mail.org", "Happy", "User"),
-                        Map.of(getOidc4VpClient("did:key:1",
+                        Map.of(getOid4VpClient("did:key:1",
                                         Map.of("vctypes_MyType", Format.LDP_VC.toString()),
                                         List.of("MyRole"),
                                         List.of("MyType", "VerifiableCredential"),
@@ -529,7 +529,7 @@ public class OID4VPIssuerEndpointTest {
                                 "A valid Credential should have been returned.")
                 ),
                 getArguments(getUserModel("e@mail.org", null, "User"),
-                        Map.of(getOidc4VpClient("did:key:1",
+                        Map.of(getOid4VpClient("did:key:1",
                                         Map.of("vctypes_MyType", Format.LDP_VC.toString()),
                                         List.of("MyRole"),
                                         List.of("MyType", "VerifiableCredential"),
@@ -543,7 +543,7 @@ public class OID4VPIssuerEndpointTest {
                 ),
                 getArguments(
                         getUserModel("e@mail.org", null, null),
-                        Map.of(getOidc4VpClient("did:key:1",
+                        Map.of(getOid4VpClient("did:key:1",
                                         Map.of("vctypes_MyType", Format.LDP_VC.toString()),
                                         List.of("MyRole"),
                                         List.of("MyType", "VerifiableCredential"),
@@ -557,7 +557,7 @@ public class OID4VPIssuerEndpointTest {
                 ),
                 getArguments(
                         getUserModel(null, null, null),
-                        Map.of(getOidc4VpClient("did:key:1",
+                        Map.of(getOid4VpClient("did:key:1",
                                         Map.of("vctypes_MyType", Format.LDP_VC.toString()),
                                         List.of("MyRole"),
                                         List.of("MyType", "VerifiableCredential"),
@@ -571,7 +571,7 @@ public class OID4VPIssuerEndpointTest {
                 ),
                 getArguments(
                         getUserModel(null, null, null),
-                        Map.of(getOidc4VpClient("did:key:1",
+                        Map.of(getOid4VpClient("did:key:1",
                                         Map.of("vctypes_MyType", Format.LDP_VC.toString()),
                                         List.of("MyRole", "MySecondRole"),
                                         List.of("MyType", "VerifiableCredential"),
@@ -585,7 +585,7 @@ public class OID4VPIssuerEndpointTest {
                 ),
                 getArguments(
                         getUserModel(null, null, null),
-                        Map.of(getOidc4VpClient("did:key:1",
+                        Map.of(getOid4VpClient("did:key:1",
                                         Map.of("vctypes_MyType", Format.LDP_VC.toString()),
                                         List.of("MyRole", "MySecondRole"),
                                         List.of("MyType", "VerifiableCredential"),
@@ -599,13 +599,13 @@ public class OID4VPIssuerEndpointTest {
                 ),
                 getArguments(
                         getUserModel(null, null, null),
-                        Map.of(getOidc4VpClient("did:key:1",
+                        Map.of(getOid4VpClient("did:key:1",
                                         Map.of("vctypes_MyType", Format.LDP_VC.toString()),
                                         List.of("MyRole", "MySecondRole"),
                                         List.of("MyType", "VerifiableCredential"),
                                         true),
                                 List.of(getRoleModel("MyRole"), getRoleModel("MySecondRole")),
-                                getOidc4VpClient("did:key:2",
+                                getOid4VpClient("did:key:2",
                                         Map.of("vctypes_MyType", Format.LDP_VC.toString()),
                                         List.of("AnotherRole"),
                                         List.of("MyType", "VerifiableCredential"),
@@ -620,13 +620,13 @@ public class OID4VPIssuerEndpointTest {
                 ),
                 getArguments(
                         getUserModel(null, null, null),
-                        Map.of(getOidc4VpClient("did:key:1",
+                        Map.of(getOid4VpClient("did:key:1",
                                         Map.of("vctypes_MyType", Format.LDP_VC.toString()),
                                         List.of("MyRole", "MySecondRole"),
                                         List.of("MyType", "VerifiableCredential"),
                                         true),
                                 List.of(getRoleModel("MyRole"), getRoleModel("MySecondRole")),
-                                getOidc4VpClient("did:key:2",
+                                getOid4VpClient("did:key:2",
                                         Map.of("vctypes_AnotherType", Format.LDP_VC.toString()),
                                         List.of("AnotherRole"),
                                         List.of("MyType", "VerifiableCredential"),
@@ -640,14 +640,14 @@ public class OID4VPIssuerEndpointTest {
                 ),
                 getArguments(
                         getUserModel(null, null, null),
-                        Map.of(getOidc4VpClient("did:key:1",
+                        Map.of(getOid4VpClient("did:key:1",
                                         Map.of("vctypes_MyType", Format.LDP_VC.toString()),
                                         List.of("MyRole", "MySecondRole"),
                                         Map.of("more", "claims"),
                                         List.of("MyType", "VerifiableCredential"),
                                         true),
                                 List.of(getRoleModel("MyRole"), getRoleModel("MySecondRole")),
-                                getOidc4VpClient("did:key:2",
+                                getOid4VpClient("did:key:2",
                                         Map.of("vctypes_MyType", Format.LDP_VC.toString()),
                                         List.of("AnotherRole"),
                                         Map.of("additional", "claim"),
@@ -664,13 +664,13 @@ public class OID4VPIssuerEndpointTest {
                 ),
                 getArguments(
                         getUserModel(null, null, null),
-                        Map.of(getOidc4VpClient("did:key:1",
+                        Map.of(getOid4VpClient("did:key:1",
                                         Map.of("vctypes_MyType", Format.LDP_VC.toString()),
                                         List.of("MyRole", "MySecondRole"),
                                         List.of("MyType", "VerifiableCredential"),
                                         true),
                                 List.of(getRoleModel("MyRole"), getRoleModel("MySecondRole")),
-                                getOidc4VpClient("did:key:2",
+                                getOid4VpClient("did:key:2",
                                         Map.of("vctypes_MyType", Format.LDP_VC.toString()),
                                         List.of("AnotherRole"),
                                         Map.of("additional", "claim"),
@@ -689,7 +689,7 @@ public class OID4VPIssuerEndpointTest {
 
     private static Stream<Arguments> provideTypesAndClients() {
         return Stream.of(
-                Arguments.of(Stream.of(getOidcClient(), getNullClient(), getOidc4VpClient(
+                Arguments.of(Stream.of(getOidcClient(), getNullClient(), getOid4VpClient(
                                 Map.of("vctypes_TestType", Format.LDP_VC.toString()),
                                 List.of("TestType", "VerifiableCredential"),
                                 true)),
@@ -700,13 +700,13 @@ public class OID4VPIssuerEndpointTest {
                 Arguments.of(Stream.of(),
                         new ExpectedResult<>(Set.of(), "An empty list should be returned if nothing is configured.")),
                 Arguments.of(
-                        Stream.of(getOidc4VpClient(Map.of("vctypes_TestType", Format.LDP_VC.toString(),
+                        Stream.of(getOid4VpClient(Map.of("vctypes_TestType", Format.LDP_VC.toString(),
                                         "another", "attribute"),
                                 List.of("MyType", "VerifiableCredential"),
                                 true)),
                         new ExpectedResult<>(Set.of(getCredential("TestType", Format.LDP_VC)),
                                 "The list of configured types should be returned.")),
-                Arguments.of(Stream.of(getOidc4VpClient(
+                Arguments.of(Stream.of(getOid4VpClient(
                                 Map.of("vctypes_TestTypeA", Format.LDP_VC.toString(), "vctypes_TestTypeB",
                                         Format.LDP_VC.toString()),
                                 List.of("MyType", "VerifiableCredential"),
@@ -716,8 +716,8 @@ public class OID4VPIssuerEndpointTest {
                                         getCredential("TestTypeB", Format.LDP_VC)),
                                 "The list of configured types should be returned.")),
                 Arguments.of(Stream.of(
-                                getOidc4VpClient(Map.of(), null, true),
-                                getOidc4VpClient(
+                                getOid4VpClient(Map.of(), null, true),
+                                getOid4VpClient(
                                         Map.of("vctypes_TestTypeA", Format.LDP_VC.toString(), "vctypes_TestTypeB",
                                                 Format.LDP_VC.toString()),
                                         List.of("TestTypeA", "TestTypeB", "VerifiableCredential"),
@@ -727,8 +727,8 @@ public class OID4VPIssuerEndpointTest {
                                         getCredential("TestTypeB", Format.LDP_VC)),
                                 "The list of configured types should be returned.")),
                 Arguments.of(Stream.of(
-                                getOidc4VpClient(null, null, true),
-                                getOidc4VpClient(
+                                getOid4VpClient(null, null, true),
+                                getOid4VpClient(
                                         Map.of("vctypes_TestTypeA", Format.LDP_VC.toString(), "vctypes_TestTypeB",
                                                 Format.LDP_VC.toString()),
                                         List.of("TestTypeA", "TestTypeB", "VerifiableCredential"),
@@ -738,10 +738,10 @@ public class OID4VPIssuerEndpointTest {
                                         getCredential("TestTypeB", Format.LDP_VC)),
                                 "The list of configured types should be returned.")),
                 Arguments.of(Stream.of(
-                                getOidc4VpClient(Map.of("vctypes_AnotherType", Format.LDP_VC.toString()),
+                                getOid4VpClient(Map.of("vctypes_AnotherType", Format.LDP_VC.toString()),
                                         List.of("TestTypeA", "TestTypeB", "AnotherType"),
                                         true),
-                                getOidc4VpClient(
+                                getOid4VpClient(
                                         Map.of("vctypes_TestTypeA", Format.LDP_VC.toString(), "vctypes_TestTypeB",
                                                 Format.LDP_VC.toString()),
                                         List.of("TestTypeA", "TestTypeB", "VerifiableCredential"),
@@ -752,12 +752,12 @@ public class OID4VPIssuerEndpointTest {
                                         getCredential("AnotherType", Format.LDP_VC)),
                                 "The list of configured types should be returned.")),
                 Arguments.of(Stream.of(
-                                getOidc4VpClient(
+                                getOid4VpClient(
                                         Map.of("vctypes_AnotherType", Format.LDP_VC.toString(), "vctypes_AndAnother",
                                                 Format.LDP_VC.toString()),
                                         List.of("AnotherType", "AndAnother", "VerfiableCredential"),
                                         true),
-                                getOidc4VpClient(
+                                getOid4VpClient(
                                         Map.of("vctypes_TestTypeA", Format.LDP_VC.toString(), "vctypes_TestTypeB",
                                                 Format.LDP_VC.toString()), List.of("AnotherType", "AndAnother", "VerfiableCredential"),
                                         true)
@@ -808,8 +808,8 @@ public class OID4VPIssuerEndpointTest {
         return clientA;
     }
 
-    private static ClientModel getOidc4VpClient(String clientId, Map<String, String> attributes, List<String> roles,
-                                                Map<String, String> additionalClaims, List<String> types, boolean enableTypeMapper) {
+    private static ClientModel getOid4VpClient(String clientId, Map<String, String> attributes, List<String> roles,
+                                               Map<String, String> additionalClaims, List<String> types, boolean enableTypeMapper) {
         Stream<RoleModel> roleModelStream = roles.stream().map(role -> {
             RoleModel roleModel = mock(RoleModel.class);
             when(roleModel.getName()).thenReturn(role);
@@ -885,11 +885,11 @@ public class OID4VPIssuerEndpointTest {
         return clientA;
     }
 
-    private static ClientModel getOidc4VpClient(String clientId, Map<String, String> attributes, List<String> roles, List<String> types, boolean enableTypeMapper) {
-        return getOidc4VpClient(clientId, attributes, roles, Map.of(), types, enableTypeMapper);
+    private static ClientModel getOid4VpClient(String clientId, Map<String, String> attributes, List<String> roles, List<String> types, boolean enableTypeMapper) {
+        return getOid4VpClient(clientId, attributes, roles, Map.of(), types, enableTypeMapper);
     }
 
-    private static ClientModel getOidc4VpClient(Map<String, String> attributes, List<String> types, boolean enableTypeMapper) {
-        return getOidc4VpClient(null, attributes, List.of(), types, enableTypeMapper);
+    private static ClientModel getOid4VpClient(Map<String, String> attributes, List<String> types, boolean enableTypeMapper) {
+        return getOid4VpClient(null, attributes, List.of(), types, enableTypeMapper);
     }
 }

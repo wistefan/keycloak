@@ -43,7 +43,7 @@ public class OID4VPWellKnownProvider extends OID4VPAbstractWellKnownProvider {
                 .map(grantTypesObject -> objectMapper.convertValue(
                         grantTypesObject, new TypeReference<List<String>>() {
                         })).orElse(new ArrayList<>());
-        // newly invented by OIDC4VCI and supported by this implementation
+        // newly invented by OID4VCI and supported by this implementation
         supportedGrantTypes.add(GRANT_TYPE_PRE_AUTHORIZED_CODE);
         configAsMap.put("grant_types_supported", supportedGrantTypes);
         configAsMap.put("credential_endpoint", getCredentialsEndpoint(keycloakSession.getContext()));

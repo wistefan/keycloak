@@ -15,20 +15,22 @@ import org.keycloak.wellknown.WellKnownProvider;
  */
 public class OID4VPIssuerWellKnownProvider extends OID4VPAbstractWellKnownProvider {
 
-	public OID4VPIssuerWellKnownProvider(KeycloakSession keycloakSession, ObjectMapper objectMapper) {
-		super(keycloakSession, objectMapper);
-	}
+    public OID4VPIssuerWellKnownProvider(KeycloakSession keycloakSession, ObjectMapper objectMapper) {
+        super(keycloakSession, objectMapper);
+    }
 
-	@Override public void close() {
-		// no-op
-	}
+    @Override
+    public void close() {
+        // no-op
+    }
 
-	@Override public Object getConfig() {
+    @Override
+    public Object getConfig() {
 
-		return new CredentialIssuer()
-				.credentialIssuer(getIssuer(keycloakSession.getContext()))
-				.credentialEndpoint(getCredentialsEndpoint(keycloakSession.getContext()))
-				.credentialsSupported(getSupportedCredentials(keycloakSession.getContext()));
-	}
+        return new CredentialIssuer()
+                .credentialIssuer(getIssuer(keycloakSession.getContext()))
+                .credentialEndpoint(getCredentialsEndpoint(keycloakSession.getContext()))
+                .credentialsSupported(getSupportedCredentials(keycloakSession));
+    }
 
 }

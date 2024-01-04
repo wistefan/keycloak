@@ -17,32 +17,23 @@ import java.time.Clock;
 /**
  * @author <a href="https://github.com/wistefan">Stefan Wiedemann</a>
  */
-public abstract class VerifiableCredentialsSigningServiceProviderFactory implements ComponentFactory<VerifiableCredentialsSigningService, VerifiableCredentialsSigningService> {
+public abstract class VCSigningServiceProviderFactory implements ComponentFactory<VerifiableCredentialsSigningService, VerifiableCredentialsSigningService> {
 
     protected static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     protected static final Clock CLOCK = Clock.systemUTC();
 
     public static ProviderConfigurationBuilder configurationBuilder() {
         return ProviderConfigurationBuilder.create()
-                .property(SigningProperties.ISSUER_DID.asConfigProperty())
                 .property(SigningProperties.KEY_ID.asConfigProperty());
     }
 
     @Override
     public void validateConfiguration(KeycloakSession session, RealmModel realm, ComponentModel model) throws ComponentValidationException {
         ConfigurationValidationHelper.check(model)
-                .checkRequired(SigningProperties.ISSUER_DID.asConfigProperty())
                 .checkRequired(SigningProperties.KEY_ID.asConfigProperty());
         validateSpecificConfiguration(session, realm, model);
     }
 
-    abstract void validateSpecificConfiguration(KeycloakSession session, RealmModel realm, ComponentModel model) throws ComponentValidationException;
-
-    /**
-     * Should return the credentials format supported by the signing service.
-     * @return the format
-     */
-    public abstract Format supportedFormat();
 
     @Override
     public void close() {
@@ -58,5 +49,15 @@ public abstract class VerifiableCredentialsSigningServiceProviderFactory impleme
     public void postInit(KeycloakSessionFactory factory) {
         // no-op
     }
+
+    abstract void validateSpecificConfiguration(KeycloakSession session, RealmModel realm, ComponentModel model) throws ComponentValidationException;
+
+
+    /**
+     * Should return the credentials format supported by the signing service.
+     *
+     * @return the format
+     */
+    public abstract Format supportedFormat();
 }
 

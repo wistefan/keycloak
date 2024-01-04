@@ -25,7 +25,7 @@ public class OID4VPTargetRoleMapper extends OID4VPMapper {
     private static final Logger LOGGER = Logger.getLogger(OID4VPTargetRoleMapper.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-    public static final String MAPPER_ID = "oidc4vp-target-role-mapper";
+    public static final String MAPPER_ID = "oid4vp-target-role-mapper";
     public static final String SUBJECT_PROPERTY_CONFIG_KEY = "subjectProperty";
     public static final String CLIENT_CONFIG_KEY = "clientId";
 

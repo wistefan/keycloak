@@ -43,7 +43,7 @@ public class OID4VPClientRegistrationProvider extends AbstractClientRegistration
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    public Response createOIDC4VPClient(OID4VPClient client) {
+    public Response createOID4VCClient(OID4VPClient client) {
         LOGGER.infof("Create siop client %s", client);
         ClientRepresentation clientRepresentation = toClientRepresentation(client);
         validate(clientRepresentation);
@@ -58,7 +58,7 @@ public class OID4VPClientRegistrationProvider extends AbstractClientRegistration
     @Path("{clientId}")
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    public Response updateOIDC4VPClient(@PathParam("clientId") String clientDid, OID4VPClient client) {
+    public Response updateOID4VCClient(@PathParam("clientId") String clientDid, OID4VPClient client) {
         client.setClientDid(clientDid);
         ClientRepresentation clientRepresentation = toClientRepresentation(client);
         validate(clientRepresentation);
@@ -69,13 +69,13 @@ public class OID4VPClientRegistrationProvider extends AbstractClientRegistration
 
     @DELETE
     @Path("{clientId}")
-    public Response deleteOIDC4VPClient(@PathParam("clientId") String clientDid) {
+    public Response deleteOID4VCClient(@PathParam("clientId") String clientDid) {
         delete(clientDid);
         return Response.noContent().build();
     }
 
     /**
-     * Validates the clientrepresentation to fulfill the requirement of a OIDC4VP client
+     * Validates the clientrepresentation to fulfill the requirement of a OID4VP client
      *
      * @param client
      */

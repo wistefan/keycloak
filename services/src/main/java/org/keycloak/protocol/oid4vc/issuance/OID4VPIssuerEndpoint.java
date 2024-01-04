@@ -40,7 +40,7 @@ import static org.keycloak.protocol.oid4vc.model.Format.*;
 
 /**
  * Provides the (REST-)endpoints required for the OID4VCI protocol.
- *
+ * <p>
  * {@see https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html}
  *
  * @author <a href="https://github.com/wistefan">Stefan Wiedemann</a>
@@ -82,14 +82,14 @@ public class OID4VPIssuerEndpoint {
     }
 
     /**
-     * Provides URI to the OIDC4VCI compliant credentials offer
+     * Provides URI to the OID4VCI compliant credentials offer
      */
     @GET
     @Path("credential-offer-uri")
     public Response getCredentialOfferURI(@QueryParam("credentialId") String vcId) {
 
         Map<String, SupportedCredential> credentialsMap = OID4VPAbstractWellKnownProvider
-                .getSupportedCredentials(session.getContext()).stream()
+                .getSupportedCredentials(session).stream()
                 .collect(Collectors.toMap(SupportedCredential::getId, sc -> sc, (sc1, sc2) -> sc1));
 
         LOGGER.debugf("Get an offer for %s", vcId);
@@ -133,7 +133,7 @@ public class OID4VPIssuerEndpoint {
     }
 
     /**
-     * Provides an OIDC4VCI compliant credentials offer
+     * Provides an OID4VCI compliant credentials offer
      */
     @GET
     @Path("credential-offer/{nonce}")
@@ -279,7 +279,7 @@ public class OID4VPIssuerEndpoint {
         List<ClientModel> clients = getClientsOfType(vcType, format);
         List<OID4VPMapper> protocolMappers = getProtocolMappers(clients)
                 .stream()
-                .map(OID4VPMapperFactory::createOIDC4VPMapper)
+                .map(OID4VPMapperFactory::createOID4VCMapper)
                 .toList();
 
         var credentialToSign = getVCToSign(protocolMappers, vcType, userSessionModel);
@@ -372,6 +372,8 @@ public class OID4VPIssuerEndpoint {
         String prefixedType = String.format("%s%s", VC_TYPES_PREFIX, vcType);
         LOGGER.infof("Looking for client supporting %s with format %s", prefixedType, formatStrings);
         List<ClientModel> vcClients = getClientModelsFromSession().stream()
+                .peek(clientModel -> LOGGER.infof("Client is %s", clientModel.getClientId()))
+                .peek(clientModel -> clientModel.getAttributes().forEach((k, v) -> LOGGER.infof("Attribute: %s: %s", k, v)))
                 .filter(clientModel -> Optional.ofNullable(clientModel.getAttributes())
                         .filter(attributes -> attributes.containsKey(prefixedType))
                         .filter(attributes -> formatStrings.stream()
@@ -381,7 +383,7 @@ public class OID4VPIssuerEndpoint {
                 .toList();
 
         if (vcClients.isEmpty()) {
-            LOGGER.infof("No OIDC4VP-Client supporting type %s registered.", vcType);
+            LOGGER.infof("No OID4VP-Client supporting type %s registered.", vcType);
             throw new BadRequestException(getErrorResponse(ErrorResponse.ErrorEnum.UNSUPPORTED_CREDENTIAL_TYPE));
         }
         return vcClients;

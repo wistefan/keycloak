@@ -16,6 +16,8 @@
  */
 package org.keycloak.services;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.jboss.logging.Logger;
 import org.keycloak.Config;
 import org.keycloak.common.util.MultivaluedHashMap;
@@ -74,7 +76,7 @@ public class DefaultKeycloakSessionFactory implements KeycloakSessionFactory, Pr
     private Long roleStorageProviderTimeout;
 
     protected ComponentFactoryProviderFactory componentFactoryPF;
-    
+
     @Override
     public void register(ProviderEventListener listener) {
         listeners.add(listener);
@@ -264,7 +266,6 @@ public class DefaultKeycloakSessionFactory implements KeycloakSessionFactory, Pr
         Set<Spi> spiList = spis;
 
         for (Spi spi : spiList) {
-
             Map<String, ProviderFactory> factories = new HashMap<String, ProviderFactory>();
             factoryMap.put(spi.getProviderClass(), factories);
 
@@ -319,7 +320,7 @@ public class DefaultKeycloakSessionFactory implements KeycloakSessionFactory, Pr
     }
 
     public KeycloakSession create() {
-        KeycloakSession session =  new DefaultKeycloakSession(this);
+        KeycloakSession session = new DefaultKeycloakSession(this);
         return session;
     }
 
@@ -338,11 +339,12 @@ public class DefaultKeycloakSessionFactory implements KeycloakSessionFactory, Pr
 
     @Override
     public <T extends Provider> ProviderFactory<T> getProviderFactory(Class<T> clazz) {
-         return getProviderFactory(clazz, provider.get(clazz));
+        return getProviderFactory(clazz, provider.get(clazz));
     }
 
     @Override
     public <T extends Provider> ProviderFactory<T> getProviderFactory(Class<T> clazz, String id) {
+
         Map<String, ProviderFactory> map = factoriesMap.get(clazz);
         if (map == null) {
             return null;
@@ -353,18 +355,18 @@ public class DefaultKeycloakSessionFactory implements KeycloakSessionFactory, Pr
     @Override
     public <T extends Provider> ProviderFactory<T> getProviderFactory(Class<T> clazz, String realmId, String componentId, Function<KeycloakSessionFactory, ComponentModel> modelGetter) {
         return (this.componentFactoryPF == null)
-          ? null
-          : this.componentFactoryPF.getProviderFactory(clazz, realmId, componentId, modelGetter);
+                ? null
+                : this.componentFactoryPF.getProviderFactory(clazz, realmId, componentId, modelGetter);
     }
 
     @Override
     public void invalidate(KeycloakSession session, InvalidableObjectType type, Object... ids) {
         factoriesMap.values().stream()
-          .map(Map::values)
-          .flatMap(Collection::stream)
-          .filter(InvalidationHandler.class::isInstance)
-          .map(InvalidationHandler.class::cast)
-          .forEach(ih -> ih.invalidate(session, type, ids));
+                .map(Map::values)
+                .flatMap(Collection::stream)
+                .filter(InvalidationHandler.class::isInstance)
+                .map(InvalidationHandler.class::cast)
+                .forEach(ih -> ih.invalidate(session, type, ids));
     }
 
     @Override

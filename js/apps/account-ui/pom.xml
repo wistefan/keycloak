@@ -127,6 +127,7 @@
             "updateEmailFeatureEnabled": ${updateEmailFeatureEnabled?c},
             "updateEmailActionEnabled": ${updateEmailActionEnabled?c},
             "isViewGroupsEnabled": ${isViewGroupsEnabled?c}
+
         }
     }
   </script>

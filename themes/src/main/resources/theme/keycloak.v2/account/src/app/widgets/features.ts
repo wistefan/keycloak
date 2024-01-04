@@ -27,6 +27,7 @@
     updateEmailFeatureEnabled: boolean;
     updateEmailActionEnabled: boolean;
     isViewGroupsEnabled: boolean;
+    isOid4VciEnabled: boolean;
  }
 
 

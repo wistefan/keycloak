@@ -69,8 +69,8 @@ const menuItems: MenuItem[] = [
     isHidden: !environment.features.isViewGroupsEnabled,
   },
   {
-    label: "oidc4vp",
-    path: "vc-issuer"
+    label: "oid4vci",
+    path: "vc-issuer",
   },
   {
     label: "resources",

@@ -18,7 +18,7 @@ import java.util.Map;
  */
 public class OID4VPStaticClaimMapper extends OID4VPMapper {
 
-	public static final String MAPPER_ID = "oidc4vp-static-claim-mapper";
+	public static final String MAPPER_ID = "oid4vp-static-claim-mapper";
 
 	public static final String SUBJECT_PROPERTY_CONFIG_KEY = "subjectProperty";
 	public static final String STATIC_CLAIM_KEY = "staticValue";

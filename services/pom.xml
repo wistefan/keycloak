@@ -279,13 +279,13 @@
                 <version>7.1.0</version>
                 <executions>
                     <execution>
-                        <id>generate-oidc4vp-sources</id>
+                        <id>generate-oid4vc-sources</id>
                         <phase>generate-sources</phase>
                         <goals>
                             <goal>generate</goal>
                         </goals>
                         <configuration>
-                            <inputSpec>${project.basedir}/src/api/oidc4vci-api.yaml</inputSpec>
+                            <inputSpec>${project.basedir}/src/api/oid4vci-api.yaml</inputSpec>
                             <strictSpec>true</strictSpec>
                             <modelPackage>org.keycloak.protocol.oid4vc.model</modelPackage>
                             <generateAliasAsModel>true</generateAliasAsModel>

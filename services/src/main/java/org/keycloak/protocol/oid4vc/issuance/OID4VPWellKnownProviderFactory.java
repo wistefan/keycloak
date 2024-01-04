@@ -26,7 +26,6 @@ public class OID4VPWellKnownProviderFactory implements WellKnownProviderFactory 
 	}
 
 	@Override public void init(Config.Scope config) {
-		LOGGER.info("Oidc4vp well known");
 		// no-op
 
 	}

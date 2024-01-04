@@ -28,7 +28,6 @@ public class OID4VPIssuerWellKnownProviderFactory implements WellKnownProviderFa
 
     @Override
     public void init(Config.Scope config) {
-        LOGGER.info("Oidc4vp issuer");
         // no-op
     }
 

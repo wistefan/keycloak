@@ -26,6 +26,7 @@ export type Environment = {
     updateEmailFeatureEnabled: boolean;
     updateEmailActionEnabled: boolean;
     isViewGroupsEnabled: boolean;
+    isOid4VciEnabled: boolean;
   };
 };
 
@@ -51,6 +52,7 @@ const defaultEnvironment: Environment = {
     updateEmailFeatureEnabled: true,
     updateEmailActionEnabled: true,
     isViewGroupsEnabled: true,
+    isOid4VciEnabled: true,
   },
 };
 
