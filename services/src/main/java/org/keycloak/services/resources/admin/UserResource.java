@@ -19,9 +19,10 @@ package org.keycloak.services.resources.admin;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.extensions.Extension;
 import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
+import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import org.jboss.logging.Logger;
-import org.jboss.resteasy.annotations.cache.NoCache;
+import org.jboss.resteasy.reactive.NoCache;
 import org.keycloak.authentication.RequiredActionProvider;
 import org.keycloak.authentication.actiontoken.execactions.ExecuteActionsActionToken;
 import org.keycloak.authentication.requiredactions.util.RequiredActionsValidator;
@@ -59,10 +60,7 @@ import org.keycloak.models.utils.RepresentationToModel;
 import org.keycloak.models.utils.RoleUtils;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 import org.keycloak.protocol.oidc.utils.RedirectUtils;
-import org.keycloak.provider.ConfiguredProvider;
 import org.keycloak.provider.ProviderFactory;
-import org.keycloak.representations.idm.UserProfileAttributeMetadata;
-import org.keycloak.representations.idm.UserProfileMetadata;
 import org.keycloak.representations.idm.CredentialRepresentation;
 import org.keycloak.representations.idm.ErrorRepresentation;
 import org.keycloak.representations.idm.FederatedIdentityRepresentation;
@@ -84,12 +82,9 @@ import org.keycloak.services.resources.LoginActionsService;
 import org.keycloak.services.resources.admin.permissions.AdminPermissionEvaluator;
 import org.keycloak.services.validation.Validation;
 import org.keycloak.storage.ReadOnlyException;
-import org.keycloak.userprofile.AttributeMetadata;
-import org.keycloak.userprofile.AttributeValidatorMetadata;
 import org.keycloak.userprofile.UserProfile;
 import org.keycloak.userprofile.UserProfileProvider;
 import org.keycloak.userprofile.ValidationException;
-import org.keycloak.utils.GroupUtils;
 import org.keycloak.utils.ProfileHelper;
 
 import jakarta.ws.rs.BadRequestException;
@@ -109,7 +104,6 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
 import jakarta.ws.rs.core.UriBuilder;
-import org.keycloak.validate.Validators;
 
 import java.net.URI;
 import java.text.MessageFormat;
@@ -129,9 +123,7 @@ import java.util.stream.Stream;
 
 import static org.keycloak.models.ImpersonationSessionNote.IMPERSONATOR_ID;
 import static org.keycloak.models.ImpersonationSessionNote.IMPERSONATOR_USERNAME;
-import static org.keycloak.services.resources.admin.UserProfileResource.createUserProfileMetadata;
 import static org.keycloak.userprofile.UserProfileContext.USER_API;
-import static org.keycloak.utils.LockObjectsForModification.lockUserSessionsForModification;
 
 /**
  * Base resource for managing users
@@ -191,7 +183,7 @@ public class UserResource {
                 wasPermanentlyLockedOut = session.getProvider(BruteForceProtector.class).isPermanentlyLockedOut(session, realm, user);
             }
 
-            Map<String, List<String>> attributes = new HashMap<>(rep.toAttributes());
+            Map<String, List<String>> attributes = new HashMap<>(rep.getRawAttributes());
 
             if (rep.getAttributes() == null) {
                 // include existing attributes in case no attributes are set so that validation takes into account the existing
@@ -309,7 +301,9 @@ public class UserResource {
     ) {
         auth.users().requireView(user);
 
-        UserRepresentation rep = ModelToRepresentation.toRepresentation(session, realm, user);
+        UserProfileProvider provider = session.getProvider(UserProfileProvider.class);
+        UserProfile profile = provider.create(USER_API, user);
+        UserRepresentation rep = profile.toRepresentation();
 
         if (realm.isIdentityFederationEnabled()) {
             List<FederatedIdentityRepresentation> reps = getFederatedIdentities(user).collect(Collectors.toList());
@@ -321,16 +315,8 @@ public class UserResource {
         }
         rep.setAccess(auth.users().getAccess(user));
 
-        UserProfileProvider provider = session.getProvider(UserProfileProvider.class);
-        UserProfile profile = provider.create(USER_API, user);
-        Map<String, List<String>> readableAttributes = profile.getAttributes().getReadable(false);
-
-        if (rep.getAttributes() != null) {
-            rep.setAttributes(readableAttributes);
-        }
-
-        if (userProfileMetadata) {
-            rep.setUserProfileMetadata(createUserProfileMetadata(session, profile));
+        if (!userProfileMetadata) {
+            rep.setUserProfileMetadata(null);
         }
 
         return rep;
@@ -365,7 +351,7 @@ public class UserResource {
         String sessionState = auth.adminAuth().getToken().getSessionState();
         if (authenticatedRealm.getId().equals(realm.getId()) && sessionState != null) {
             sameRealm = true;
-            UserSessionModel userSession = lockUserSessionsForModification(session, () -> session.sessions().getUserSession(authenticatedRealm, sessionState));
+            UserSessionModel userSession = session.sessions().getUserSession(authenticatedRealm, sessionState);
             AuthenticationManager.expireIdentityCookie(realm, session.getContext().getUri(), session);
             AuthenticationManager.expireRememberMeCookie(realm, session.getContext().getUri(), session);
             AuthenticationManager.expireAuthSessionCookie(realm, session.getContext().getUri(), session);
@@ -605,6 +591,7 @@ public class UserResource {
     @POST
     @Tag(name = KeycloakOpenAPI.Admin.Tags.USERS)
     @Operation( summary = "Remove all user sessions associated with the user Also send notification to all clients that have an admin URL to invalidate the sessions for the particular user.")
+    @APIResponse(responseCode = "204", description = "No Content")
     public void logout() {
         auth.users().requireManage(user);
 
@@ -787,6 +774,7 @@ public class UserResource {
     @POST
     @Tag(name = KeycloakOpenAPI.Admin.Tags.USERS)
     @Operation( summary = "Move a credential to a first position in the credentials list of the user")
+    @APIResponse(responseCode = "204", description = "No Content")
     public void moveCredentialToFirst(final @Parameter(description = "The credential to move") @PathParam("credentialId") String credentialId){
         moveCredentialAfter(credentialId, null);
     }
@@ -800,6 +788,7 @@ public class UserResource {
     @POST
     @Tag(name = KeycloakOpenAPI.Admin.Tags.USERS)
     @Operation( summary = "Move a credential to a position behind another credential")
+    @APIResponse(responseCode = "204", description = "No Content")
     public void moveCredentialAfter(final @Parameter(description = "The credential to move") @PathParam("credentialId") String credentialId,
                                     final @Parameter(description = "The credential that will be the previous element in the list. If set to null, the moved credential will be the first element in the list.") @PathParam("newPreviousCredentialId") String newPreviousCredentialId){
         auth.users().requireManage(user);

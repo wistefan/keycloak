@@ -21,7 +21,6 @@ import com.google.common.collect.Sets;
 import org.apache.commons.io.IOUtils;
 import org.hamcrest.CoreMatchers;
 import org.hamcrest.Matchers;
-import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -76,6 +75,7 @@ import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.core.Response;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -250,10 +250,8 @@ public class RealmTest extends AbstractAdminTest {
         );
 
         // This attribute is represented in Legacy store as attribute and for Map store as a field
-        if (!StoreProvider.getCurrentProvider().isMapStore()) {
-            expectedAttributes.add(OTPPolicy.REALM_REUSABLE_CODE_ATTRIBUTE);
-            expectedAttributesCount++;
-        }
+        expectedAttributes.add(OTPPolicy.REALM_REUSABLE_CODE_ATTRIBUTE);
+        expectedAttributesCount++;
 
         assertThat(attributesKeys.size(), CoreMatchers.is(expectedAttributesCount));
         assertThat(attributesKeys, CoreMatchers.is(expectedAttributes));
@@ -641,7 +639,7 @@ public class RealmTest extends AbstractAdminTest {
 
     @Test
     public void convertOIDCClientDescription() throws IOException {
-        String description = IOUtils.toString(getClass().getResourceAsStream("/client-descriptions/client-oidc.json"));
+        String description = IOUtils.toString(getClass().getResourceAsStream("/client-descriptions/client-oidc.json"), Charset.defaultCharset());
 
         ClientRepresentation converted = realm.convertClientDescription(description);
         assertEquals(1, converted.getRedirectUris().size());
@@ -650,7 +648,7 @@ public class RealmTest extends AbstractAdminTest {
 
     @Test
     public void convertSAMLClientDescription() throws IOException {
-        String description = IOUtils.toString(getClass().getResourceAsStream("/client-descriptions/saml-entity-descriptor.xml"));
+        String description = IOUtils.toString(getClass().getResourceAsStream("/client-descriptions/saml-entity-descriptor.xml"), Charset.defaultCharset());
 
         ClientRepresentation converted = realm.convertClientDescription(description);
         assertEquals("loadbalancer-9.siroe.com", converted.getClientId());
@@ -737,7 +735,6 @@ public class RealmTest extends AbstractAdminTest {
 
     @Test
     public void clearRealmCache() {
-        Assume.assumeTrue("Realm cache disabled.", isRealmCacheEnabled());
         RealmRepresentation realmRep = realm.toRepresentation();
         assertTrue(testingClient.testing().cache("realms").contains(realmRep.getId()));
 
@@ -749,7 +746,6 @@ public class RealmTest extends AbstractAdminTest {
 
     @Test
     public void clearUserCache() {
-        Assume.assumeTrue("User cache disabled.", isUserCacheEnabled());
         UserRepresentation user = new UserRepresentation();
         user.setUsername("clearcacheuser");
         Response response = realm.users().create(user);

@@ -18,6 +18,7 @@ import {
   useLinkClickHandler,
   useLocation,
 } from "react-router-dom";
+import { ContentMenu } from "../content/ContentRenderer";
 import { environment } from "../environment";
 import { TFuncKey } from "../i18n";
 
@@ -68,8 +69,8 @@ const menuItems: MenuItem[] = [
     isHidden: !environment.features.isViewGroupsEnabled,
   },
   {
-    label: "oidc4vp",
-    path: "vc-issuer"
+    label: "oid4vci",
+    path: "vc-issuer",
   },
   {
     label: "resources",
@@ -83,6 +84,7 @@ export const PageNav = () => (
     nav={
       <Nav>
         <NavList>
+          <ContentMenu />
           {menuItems
             .filter((menuItem) => !menuItem.isHidden)
             .map((menuItem) => (
@@ -142,7 +144,7 @@ type NavLinkProps = {
   isActive: boolean;
 };
 
-const NavLink = ({
+export const NavLink = ({
   to,
   isActive,
   children,

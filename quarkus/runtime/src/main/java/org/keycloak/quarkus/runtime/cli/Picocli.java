@@ -30,6 +30,7 @@ import static org.keycloak.quarkus.runtime.Environment.isDevMode;
 import static org.keycloak.quarkus.runtime.configuration.Configuration.getCurrentBuiltTimeProperty;
 import static org.keycloak.quarkus.runtime.configuration.Configuration.getRawPersistedProperty;
 import static org.keycloak.quarkus.runtime.configuration.Configuration.getRuntimeProperty;
+import static org.keycloak.quarkus.runtime.configuration.MicroProfileConfigProvider.NS_KEYCLOAK_PREFIX;
 import static org.keycloak.quarkus.runtime.configuration.mappers.PropertyMappers.formatValue;
 import static org.keycloak.quarkus.runtime.configuration.mappers.PropertyMappers.isBuildTimeProperty;
 import static org.keycloak.utils.StringUtil.isNotBlank;
@@ -41,6 +42,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -52,6 +54,8 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.eclipse.microprofile.config.spi.ConfigSource;
+import org.jboss.logging.Logger;
+import org.keycloak.config.DeprecatedMetadata;
 import org.keycloak.config.MultiOption;
 import org.keycloak.config.OptionCategory;
 import org.keycloak.quarkus.runtime.cli.command.AbstractCommand;
@@ -60,6 +64,7 @@ import org.keycloak.quarkus.runtime.cli.command.ImportRealmMixin;
 import org.keycloak.quarkus.runtime.cli.command.Main;
 import org.keycloak.quarkus.runtime.cli.command.ShowConfig;
 import org.keycloak.quarkus.runtime.cli.command.StartDev;
+import org.keycloak.quarkus.runtime.cli.command.Tools;
 import org.keycloak.quarkus.runtime.configuration.ConfigArgsConfigSource;
 import org.keycloak.quarkus.runtime.configuration.Configuration;
 import org.keycloak.quarkus.runtime.configuration.PersistedConfigSource;
@@ -129,11 +134,19 @@ public final class Picocli {
     private static int runReAugmentationIfNeeded(List<String> cliArgs, CommandLine cmd) {
         int exitCode = 0;
 
-        if (shouldSkipRebuild(cliArgs)) {
+        CommandLine currentCommandSpec = getCurrentCommandSpec(cliArgs, cmd.getCommandSpec());
+
+        if (currentCommandSpec == null) {
+            return exitCode; // possible if using --version or the user made a mistake
+        }
+
+        String currentCommandName = currentCommandSpec.getCommandName();
+
+        if (shouldSkipRebuild(cliArgs, currentCommandName)) {
             return exitCode;
         }
 
-        if (cliArgs.contains(StartDev.NAME)) {
+        if (currentCommandName.equals(StartDev.NAME)) {
             String profile = Environment.getProfile();
 
             if (profile == null) {
@@ -141,24 +154,22 @@ public final class Picocli {
                 Environment.forceDevProfile();
             }
         }
-        if (requiresReAugmentation(getCurrentCommandSpec(cliArgs, cmd.getCommandSpec()))) {
+        if (requiresReAugmentation(currentCommandSpec)) {
             exitCode = runReAugmentation(cliArgs, cmd);
         }
 
         return exitCode;
     }
 
-    private static boolean shouldSkipRebuild(List<String> cliArgs) {
+    private static boolean shouldSkipRebuild(List<String> cliArgs, String currentCommandName) {
         return cliArgs.contains("--help")
                 || cliArgs.contains("-h")
                 || cliArgs.contains("--help-all")
-                || cliArgs.contains(ShowConfig.NAME);
+                || currentCommandName.equals(ShowConfig.NAME)
+                || currentCommandName.equals(Tools.NAME);
     }
 
-    public static boolean requiresReAugmentation(CommandLine cmdCommand) {
-        if (cmdCommand == null) {
-            return false; // possible if using --version or the user made a mistake
-        }
+    private static boolean requiresReAugmentation(CommandLine cmdCommand) {
         if (hasConfigChanges(cmdCommand)) {
             if (!ConfigArgsConfigSource.getAllCliArgs().contains(StartDev.NAME) && "dev".equals(getConfig().getOptionalValue("kc.profile", String.class).orElse(null))) {
                 return false;
@@ -264,6 +275,7 @@ public final class Picocli {
 
         List<String> ignoredBuildTime = new ArrayList<>();
         List<String> ignoredRunTime = new ArrayList<>();
+        Set<String> deprecatedInUse = new HashSet<>();
         for (OptionCategory category : abstractCommand.getOptionCategories()) {
             List<PropertyMapper> mappers = new ArrayList<>();
             Optional.ofNullable(PropertyMappers.getRuntimeMappers().get(category)).ifPresent(mappers::addAll);
@@ -297,24 +309,56 @@ public final class Picocli {
                 }
 
                 if (!PropertyMapperParameterConsumer.isExpectedValue(mapper.getExpectedValues(), value)) {
-                    throw new NonCliPropertyException(PropertyMapperParameterConsumer.getErrorMessage(mapper.getFrom(),
+                    throw new PropertyException(PropertyMapperParameterConsumer.getErrorMessage(mapper.getFrom(),
                             value, mapper.getExpectedValues(), mapper.getExpectedValues()) + ". From ConfigSource " + configSource.getName());
                 }
+
+                mapper.getDeprecatedMetadata().ifPresent(d -> {
+                    DeprecatedMetadata metadata = (DeprecatedMetadata) d;
+                    String optionName = mapper.getFrom();
+                    if (optionName.startsWith(NS_KEYCLOAK_PREFIX)) {
+                        optionName = optionName.substring(NS_KEYCLOAK_PREFIX.length());
+                    }
+
+                    StringBuilder sb = new StringBuilder("\t- ");
+                    sb.append(optionName);
+                    if (metadata.getNote() != null || !metadata.getNewOptionsKeys().isEmpty()) {
+                        sb.append(":");
+                    }
+                    if (metadata.getNote() != null) {
+                        sb.append(" ");
+                        sb.append(metadata.getNote());
+                        if (!metadata.getNote().endsWith(".")) {
+                            sb.append(".");
+                        }
+                    }
+                    if (!metadata.getNewOptionsKeys().isEmpty()) {
+                        sb.append(" Use ");
+                        sb.append(String.join(", ", metadata.getNewOptionsKeys()));
+                        sb.append(".");
+                    }
+                    deprecatedInUse.add(sb.toString());
+                });
             }
         }
 
+        Logger logger = Logger.getLogger(Picocli.class); // logger can't be instantiated in a class field
+
         if (!ignoredBuildTime.isEmpty()) {
-            outputIgnoredProperties(ignoredBuildTime, true, out);
+            outputIgnoredProperties(ignoredBuildTime, true, logger);
         } else if (!ignoredRunTime.isEmpty()) {
-            outputIgnoredProperties(ignoredRunTime, false, out);
+            outputIgnoredProperties(ignoredRunTime, false, logger);
+        }
+
+        if (!deprecatedInUse.isEmpty()) {
+            logger.warn("The following used options are DEPRECATED and will be removed in a future release:\n" + String.join("\n", deprecatedInUse));
         }
     }
 
-    private static void outputIgnoredProperties(List<String> properties, boolean build, PrintWriter out) {
-        out.write(String.format("The following %s time non-cli properties were found, but will be ignored during %s time: %s\n",
+    private static void outputIgnoredProperties(List<String> properties, boolean build, Logger logger) {
+        logger.warn(String.format("The following %s time non-cli options were found, but will be ignored during %s time: %s\n",
                 build ? "build" : "run", build ? "run" : "build",
                 properties.stream().collect(Collectors.joining(", "))));
-        out.flush();
     }
 
     private static boolean hasConfigChanges(CommandLine cmdCommand) {
@@ -556,7 +600,7 @@ public final class Picocli {
                 }
 
                 OptionSpec.Builder optBuilder = OptionSpec.builder(name)
-                        .description(description)
+                        .description(getDecoratedOptionDescription(mapper))
                         .paramLabel(mapper.getParamLabel())
                         .completionCandidates(new Iterable<String>() {
                             @Override
@@ -591,11 +635,46 @@ public final class Picocli {
         }
     }
 
+    private static String getDecoratedOptionDescription(PropertyMapper<?> mapper) {
+        StringBuilder transformedDesc = new StringBuilder(mapper.getDescription());
+
+        if (mapper.getType() != Boolean.class && !mapper.getExpectedValues().isEmpty()) {
+            transformedDesc.append(" Possible values are: " + String.join(", ", mapper.getExpectedValues()) + ".");
+        }
+
+        mapper.getDefaultValue().map(d -> " Default: " + d + ".").ifPresent(transformedDesc::append);
+
+        mapper.getDeprecatedMetadata().ifPresent(deprecatedMetadata -> {
+            List<String> deprecatedDetails = new ArrayList<>();
+            String note = deprecatedMetadata.getNote();
+            if (note != null) {
+                if (!note.endsWith(".")) {
+                    note += ".";
+                }
+                deprecatedDetails.add(note);
+            }
+            if (!deprecatedMetadata.getNewOptionsKeys().isEmpty()) {
+                String s = deprecatedMetadata.getNewOptionsKeys().size() > 1 ? "s" : "";
+                deprecatedDetails.add("Use the following option" + s + " instead: " + String.join(", ", deprecatedMetadata.getNewOptionsKeys()) + ".");
+            }
+
+            transformedDesc.insert(0, "@|bold DEPRECATED.|@ ");
+            if (!deprecatedDetails.isEmpty()) {
+                transformedDesc
+                        .append(" @|bold ")
+                        .append(String.join(" ", deprecatedDetails))
+                        .append("|@");
+            }
+        });
+
+        return transformedDesc.toString();
+    }
+
     public static void println(CommandLine cmd, String message) {
         cmd.getOut().println(message);
     }
 
-    public static List<String> parseArgs(String[] rawArgs) {
+    public static List<String> parseArgs(String[] rawArgs) throws PropertyException {
         if (rawArgs.length == 0) {
             return List.of();
         }
@@ -615,6 +694,12 @@ public final class Picocli {
                 iterator.remove();
 
                 if (!arg.contains(ARG_KEY_VALUE_SEPARATOR)) {
+                    if (!iterator.hasNext()) {
+                        if (arg.startsWith("--spi")) {
+                            throw new PropertyException(String.format("spi argument %s requires a value.", arg));
+                        }
+                        return args;
+                    }
                     String next = iterator.next();
 
                     if (!next.startsWith("--")) {

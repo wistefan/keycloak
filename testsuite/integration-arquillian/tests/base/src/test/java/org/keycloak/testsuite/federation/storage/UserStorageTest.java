@@ -1,11 +1,11 @@
 package org.keycloak.testsuite.federation.storage;
 
 import org.apache.commons.io.FileUtils;
+import org.hamcrest.MatcherAssert;
 import org.hamcrest.Matchers;
 import org.jboss.arquillian.graphene.page.Page;
 import org.junit.After;
 import org.junit.Assert;
-import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -125,8 +125,6 @@ public class UserStorageTest extends AbstractAuthTest {
 
     @Before
     public void addProvidersBeforeTest() throws URISyntaxException, IOException {
-        Assume.assumeTrue("User cache disabled.", isUserCacheEnabled());
-
         ComponentRepresentation memProvider = new ComponentRepresentation();
         memProvider.setName("memory");
         memProvider.setProviderId(UserMapStorageFactory.PROVIDER_ID);
@@ -892,11 +890,11 @@ public class UserStorageTest extends AbstractAuthTest {
 
             List<String> users = session.users().getRoleMembersStream(realm, roleModel1).map(UserModel::getUsername).collect(Collectors.toList());
             Assert.assertEquals(2, users.size());
-            Assert.assertThat(users, Matchers.containsInAnyOrder("thor", "zeus"));
+            MatcherAssert.assertThat(users, Matchers.containsInAnyOrder("thor", "zeus"));
 
             users = session.users().getRoleMembersStream(realm, roleModel2).map(UserModel::getUsername).collect(Collectors.toList());
             Assert.assertEquals(1, users.size());
-            Assert.assertThat(users, Matchers.containsInAnyOrder("thor"));
+            MatcherAssert.assertThat(users, Matchers.containsInAnyOrder("thor"));
         });
 
         testRealmResource().roles().get("role1").remove();
@@ -948,7 +946,7 @@ public class UserStorageTest extends AbstractAuthTest {
             RealmModel realm = currentSession.realms().getRealmByName("test");
 
             UserModel user = currentSession.users().getUserByUsername(realm, "thor");
-            Assert.assertFalse(StorageId.isLocalStorage(user));
+            Assert.assertFalse(StorageId.isLocalStorage(user.getId()));
 
             Stream<CredentialModel> credentials = user.credentialManager().getStoredCredentialsStream();
             org.keycloak.testsuite.Assert.assertEquals(0, credentials.count());
@@ -1057,7 +1055,7 @@ public class UserStorageTest extends AbstractAuthTest {
             RealmModel realm = session.realms().getRealmByName("test");
 
             UserModel user = session.users().getUserByUsername(realm, "thor");
-            Assert.assertFalse(StorageId.isLocalStorage(user));
+            Assert.assertFalse(StorageId.isLocalStorage(user.getId()));
 
             CredentialModel otp1 = OTPCredentialModel.createFromPolicy(realm, "secret1");
             user.credentialManager().createStoredCredential(otp1);

@@ -154,10 +154,6 @@
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>com.danubetech</groupId>
-            <artifactId>verifiable-credentials-java</artifactId>
-        </dependency>
-        <dependency>
             <groupId>org.keycloak</groupId>
             <artifactId>keycloak-crypto-default</artifactId>
         </dependency>
@@ -621,6 +617,14 @@
             <groupId>org.openjdk.nashorn</groupId>
             <artifactId>nashorn-core</artifactId>
             <version>${nashorn.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.apicatalog</groupId>
+            <artifactId>titanium-json-ld</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.setl</groupId>
+            <artifactId>rdf-urdna</artifactId>
         </dependency>
 
         <dependency>

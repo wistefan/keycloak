@@ -1,5 +1,5 @@
 import type ClientScopeRepresentation from "@keycloak/keycloak-admin-client/lib/defs/clientScopeRepresentation";
-import type UserProfileConfig from "@keycloak/keycloak-admin-client/lib/defs/userProfileMetadata";
+import type { UserProfileConfig } from "@keycloak/keycloak-admin-client/lib/defs/userProfileMetadata";
 import {
   Divider,
   FormGroup,
@@ -165,6 +165,12 @@ export const AttributeGeneralSettings = () => {
           <Divider />
           <FormGroup
             label={t("enabledWhen")}
+            labelIcon={
+              <HelpItem
+                helpText={t("enabledWhenTooltip")}
+                fieldLabelId="enabled-when"
+              />
+            }
             fieldId="enabledWhen"
             hasNoPaddingTop
           >
@@ -296,6 +302,12 @@ export const AttributeGeneralSettings = () => {
               </FormGroup>
               <FormGroup
                 label={t("requiredWhen")}
+                labelIcon={
+                  <HelpItem
+                    helpText={t("requiredWhenTooltip")}
+                    fieldLabelId="required-when"
+                  />
+                }
                 fieldId="requiredWhen"
                 hasNoPaddingTop
               >

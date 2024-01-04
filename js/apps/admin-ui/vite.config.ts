@@ -13,12 +13,11 @@ export default defineConfig({
     target: "esnext",
     modulePreload: false,
     cssMinify: "lightningcss",
+    rollupOptions: {
+      external: ["react", "react/jsx-runtime", "react-dom"],
+    },
   },
   plugins: [react(), checker({ typescript: true })],
-  resolve: {
-    // Resolve the 'module' entrypoint at all times (not the default due to Node.js compatibility issues).
-    mainFields: ["module"],
-  },
   test: {
     setupFiles: "vitest.setup.ts",
     watch: false,

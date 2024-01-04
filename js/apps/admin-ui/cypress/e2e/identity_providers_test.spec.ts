@@ -83,8 +83,8 @@ describe("Identity provider test", () => {
         { testName: "Google", displayName: "Google", alias: "google" },
         { testName: "Instagram", displayName: "Instagram", alias: "instagram" },
         {
-          testName: "LinkedIn OpenID Connect",
-          displayName: "LinkedIn OpenID Connect",
+          testName: "LinkedIn",
+          displayName: "LinkedIn",
           alias: "linkedin-openid-connect",
         },
         { testName: "Microsoft", displayName: "Microsoft", alias: "microsoft" },
@@ -337,6 +337,15 @@ describe("Identity provider test", () => {
       advancedSettings.clickTrustEmailSwitch();
       advancedSettings.clickAccountLinkingOnlySwitch();
       advancedSettings.clickHideOnLoginPageSwitch();
+      advancedSettings.assertDoNotImportUsersSwitchTurnedOn(false);
+      advancedSettings.assertSyncModeShown(true);
+      advancedSettings.clickdoNotStoreUsersSwitch();
+      advancedSettings.assertDoNotImportUsersSwitchTurnedOn(true);
+      advancedSettings.assertSyncModeShown(false);
+      advancedSettings.clickdoNotStoreUsersSwitch();
+      advancedSettings.assertDoNotImportUsersSwitchTurnedOn(false);
+      advancedSettings.assertSyncModeShown(true);
+
       advancedSettings.clickEssentialClaimSwitch();
       advancedSettings.typeClaimNameInput("claim-name");
       advancedSettings.typeClaimValueInput("claim-value");

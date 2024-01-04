@@ -73,6 +73,7 @@ public class KeycloakQuarkusServerDeployableContainer extends AbstractQuarkusDep
         commands.add(getCommand());
         commands.add("-v");
         commands.add(command);
+        addFeaturesOption(commands);
         if (args != null) {
             commands.addAll(Arrays.asList(args));
         }
@@ -146,10 +147,7 @@ public class KeycloakQuarkusServerDeployableContainer extends AbstractQuarkusDep
             builder.environment().put("JAVA_OPTS", javaOpts);
         }
 
-        final StoreProvider storeProvider = StoreProvider.getCurrentProvider();
-        final boolean isJpaStore = storeProvider.equals(StoreProvider.JPA) || storeProvider.equals(StoreProvider.LEGACY);
-
-        if (!isJpaStore) {
+        if (!StoreProvider.JPA.equals(StoreProvider.getCurrentProvider())) {
             builder.environment().put("KEYCLOAK_ADMIN", "admin");
             builder.environment().put("KEYCLOAK_ADMIN_PASSWORD", "admin");
         }

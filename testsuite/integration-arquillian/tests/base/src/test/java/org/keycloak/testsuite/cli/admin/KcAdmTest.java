@@ -284,6 +284,14 @@ public class KcAdmTest extends AbstractAdmCliTest {
     }
 
     @Test
+    public void testUserLoginWithAngleBrackets() {
+        KcAdmExec exe = KcAdmExec.execute("config credentials --server " + serverUrl + " --realm test --user 'special>>character' --password '<password>'");
+
+        assertExitCodeAndStreamSizes(exe, 0, 0, 1);
+        Assert.assertEquals("stderr first line", "Logging into " + serverUrl + " as user special>>character of realm test", exe.stderrLines().get(0));
+    }
+
+    @Test
     public void testUserLoginWithDefaultConfigInteractive() throws IOException {
         /*
          *  Test user login with interaction - provide user password after prompted for it
@@ -609,6 +617,28 @@ public class KcAdmTest extends AbstractAdmCliTest {
         KcAdmExec.execute("create users -r demorealm -s username=onemoretestuser");
         KcAdmExec exec = execute("add-roles --uusername=testuser --rolename offline_access --target-realm=demorealm");
         Assert.assertEquals(0, exec.exitCode());
+        exec = execute("add-roles --uusername=anothertestuser --rolename offline_access --target-realm=demorealm");
+        Assert.assertEquals(0, exec.exitCode());
+        exec = execute("add-roles --uusername=onemoretestuser --rolename offline_access --target-realm=demorealm");
+        Assert.assertEquals(0, exec.exitCode());
+    }
+
+    @Test
+    public void testGetGroupNameExact() {
+        KcAdmExec.execute("config credentials --server " + serverUrl + " --realm master --user admin --password admin");
+        KcAdmExec.execute("create realms -s realm=demorealm -s enabled=true");
+        KcAdmExec.execute("create role -r demorealm -s name=testrole");
+        KcAdmExec.execute("create groups -r demorealm -s name=test");
+        KcAdmExec.execute("create groups -r demorealm -s name=anothertest");
+        KcAdmExec.execute("create groups -r demorealm -s name=onemoretest");
+        KcAdmExec exec = execute("get-roles -r demorealm --gname test");
+        Assert.assertEquals(exec.stderrString(), 0, exec.exitCode());
+        exec = execute("get-roles -r demorealm --gname anothertest");
+        Assert.assertEquals(exec.stderrString(), 0, exec.exitCode());
+        exec = execute("get-roles -r demorealm --gname onemoretest");
+        Assert.assertEquals(exec.stderrString(), 0, exec.exitCode());
+        exec = execute("get-roles -r demorealm --gname not_there");
+        Assert.assertEquals(1, exec.exitCode());
     }
 
     @Test

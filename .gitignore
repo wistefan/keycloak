@@ -29,6 +29,7 @@ nbproject
 # VS Code #
 ###########
 *.code-workspace
+.vscode/settings.json
 
 # Compiled source #
 ###################
@@ -83,6 +84,7 @@ quarkus/data/*.db
 /adapters/saml/jakarta-servlet-filter/src/
 /adapters/oidc/jakarta-servlet-filter/src/
 /adapters/saml/wildfly-elytron-jakarta/src/
+/adapters/saml/core-jakarta/src/
 /adapters/saml/wildfly/wildfly-jakarta-subsystem/src/
 /.metadata/
 
@@ -97,3 +99,11 @@ node_modules
 
 # SDKMAM environment file
 .sdkmanrc
+
+# JENV
+.java-version
+
+# Generated bin directories
+services/bin
+testsuite/integration-arquillian/servers/app-server/jboss/galleon/bin
+testsuite/integration-arquillian/servers/app-server/jetty/94/bin

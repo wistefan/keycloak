@@ -17,7 +17,7 @@
   -->
 
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <parent>
         <artifactId>keycloak-parent</artifactId>
         <groupId>org.keycloak</groupId>
@@ -34,13 +34,27 @@
         <maven.compiler.release>17</maven.compiler.release>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
-        <version.org.projectlombok>1.18.24</version.org.projectlombok>
         <mockito.version>1.9.5</mockito.version>
         <mockito.junit-jupiter.version>5.0.0</mockito.junit-jupiter.version>
         <junit.jupiter.version>5.9.2</junit.jupiter.version>
     </properties>
 
     <dependencies>
+        <dependency>
+            <groupId>com.apicatalog</groupId>
+            <artifactId>titanium-json-ld</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.setl</groupId>
+            <artifactId>rdf-urdna</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.nimbusds</groupId>
+            <artifactId>nimbus-jose-jwt</artifactId>
+            <version>9.37.3</version>
+        </dependency>
         <dependency>
             <groupId>org.keycloak</groupId>
             <artifactId>keycloak-core</artifactId>
@@ -87,27 +101,6 @@
             <groupId>org.twitter4j</groupId>
             <artifactId>twitter4j-core</artifactId>
         </dependency>
-        <!-- VC Model -->
-        <dependency>
-            <groupId>com.danubetech</groupId>
-            <artifactId>verifiable-credentials-java</artifactId>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.glassfish</groupId>
-                    <artifactId>jakarta.json</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.bouncycastle</groupId>
-                    <artifactId>bcprov-jdk18on</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <!-- lazy dev -->
-        <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-            <version>${version.org.projectlombok}</version>
-        </dependency>
 
         <dependency>
             <groupId>org.jboss.logging</groupId>
@@ -127,6 +120,11 @@
         <dependency>
             <groupId>org.jboss.resteasy</groupId>
             <artifactId>resteasy-core</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus.resteasy.reactive</groupId>
+            <artifactId>resteasy-reactive-common</artifactId>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -255,6 +253,14 @@
             <version>${mockito.junit-jupiter.version}</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>io.smallrye.common</groupId>
+            <artifactId>smallrye-common-annotation</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.keycloak</groupId>
+            <artifactId>keycloak-model-legacy-private</artifactId>
+        </dependency>
     </dependencies>
     <build>
         <plugins>
@@ -273,15 +279,15 @@
                 <version>7.1.0</version>
                 <executions>
                     <execution>
-                        <id>generate-oidc4vp-sources</id>
+                        <id>generate-oid4vc-sources</id>
                         <phase>generate-sources</phase>
                         <goals>
                             <goal>generate</goal>
                         </goals>
                         <configuration>
-                            <inputSpec>${project.basedir}/src/api/oidc4vci-api.yaml</inputSpec>
+                            <inputSpec>${project.basedir}/src/api/oid4vci-api.yaml</inputSpec>
                             <strictSpec>true</strictSpec>
-                            <modelPackage>org.keycloak.protocol.oidc4vp.model</modelPackage>
+                            <modelPackage>org.keycloak.protocol.oid4vc.model</modelPackage>
                             <generateAliasAsModel>true</generateAliasAsModel>
                             <generatorName>jaxrs-spec</generatorName>
                             <!-- the generated interfaces cannot be used, since there class level annotations clash with the spi. -->
@@ -436,6 +442,67 @@
                                         <toc/>
                                         <toc-position>left</toc-position>
                                         <generated>${project.basedir}/target/apidocs-rest/asciidoc</generated>
+                                        <!-- Boolean attributes are passed as defined/undefined to AsciiDoc, not at their literal value -->
+                                        <project_community>true</project_community>
+                                        <project_product>false</project_product>
+                                    </attributes>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <artifactId>maven-resources-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>copy-raw-openapi-definition</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>copy-resources</goal>
+                                </goals>
+                                <configuration>
+                                    <outputDirectory>${project.basedir}/target/apidocs-rest/output</outputDirectory>
+                                    <resources>
+                                        <resource>
+                                            <directory>${project.build.directory}/apidocs-rest/swagger/apidocs</directory>
+                                            <includes>
+                                                <include>**/openapi.yaml</include>
+                                                <include>**/openapi.json</include>
+                                            </includes>
+                                        </resource>
+                                    </resources>
+                                    <overwrite>true</overwrite>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+
+        <profile>
+            <id>product</id>
+            <activation>
+                <property>
+                    <name>product</name>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.asciidoctor</groupId>
+                        <artifactId>asciidoctor-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>generate-docs</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>process-asciidoc</goal>
+                                </goals>
+                                <configuration combine.children="append">
+                                    <attributes combine.children="append">
+                                        <project_community>false</project_community>
+                                        <project_product>true</project_product>
                                     </attributes>
                                 </configuration>
                             </execution>
@@ -444,5 +511,6 @@
                 </plugins>
             </build>
         </profile>
+
     </profiles>
 </project>

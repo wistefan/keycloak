@@ -21,7 +21,7 @@ import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.extensions.Extension;
 import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
-import org.jboss.resteasy.annotations.cache.NoCache;
+import org.jboss.resteasy.reactive.NoCache;
 import org.keycloak.broker.provider.IdentityProvider;
 import org.keycloak.broker.provider.IdentityProviderFactory;
 import org.keycloak.broker.social.SocialIdentityProvider;
@@ -159,6 +159,8 @@ public class IdentityProvidersResource {
             IdentityProviderFactory providerFactory = getProviderFactoryById(providerId);
             Map<String, String> config;
             config = providerFactory.parseConfig(session, inputStream);
+            // add the URL just if needed by the identity provider
+            config.put(IdentityProviderModel.METADATA_DESCRIPTOR_URL, from);
             return config;
         } finally {
             try {
