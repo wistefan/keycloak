@@ -4,11 +4,13 @@ import org.keycloak.component.ComponentModel;
 import org.keycloak.component.ComponentValidationException;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
+import org.keycloak.protocol.oid4vc.issuance.VCIssuerException;
 import org.keycloak.protocol.oid4vc.model.Format;
 import org.keycloak.provider.ConfigurationValidationHelper;
 import org.keycloak.provider.ProviderConfigProperty;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * @author <a href="https://github.com/wistefan">Stefan Wiedemann</a>
@@ -22,8 +24,10 @@ public class JwtSigningServiceProviderFactory extends VCSigningServiceProviderFa
     public VerifiableCredentialsSigningService create(KeycloakSession session, ComponentModel model) {
         var keyId = model.get(SigningProperties.KEY_ID.getKey());
         var algorithmType = model.get(SigningProperties.ALGORITHM_TYPE.getKey());
+        var issuerDid = Optional.ofNullable(session.getContext().getRealm().getAttribute(ISSUER_DID_REALM_ATTRIBUTE))
+                .orElseThrow(() -> new VCIssuerException("No issuerDid configured."));
 
-        return new JwtSigningService(session, keyId, CLOCK, algorithmType);
+        return new JwtSigningService(session, keyId, CLOCK, algorithmType, issuerDid);
     }
 
     @Override

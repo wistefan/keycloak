@@ -19,6 +19,7 @@ import java.time.Clock;
  */
 public abstract class VCSigningServiceProviderFactory implements ComponentFactory<VerifiableCredentialsSigningService, VerifiableCredentialsSigningService> {
 
+    protected static final String ISSUER_DID_REALM_ATTRIBUTE = "issuerDid";
     protected static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     protected static final Clock CLOCK = Clock.systemUTC();
 
