@@ -26,7 +26,6 @@ import java.util.Map;
 
 import org.keycloak.common.ClientConnection;
 import org.keycloak.events.EventBuilder;
-import org.keycloak.events.EventType;
 import org.keycloak.http.HttpRequest;
 import org.keycloak.http.HttpResponse;
 import org.keycloak.models.ClientModel;
@@ -44,6 +43,7 @@ import org.keycloak.services.cors.Cors;
 public interface OAuth2GrantType extends Provider {
 
     /**
+<<<<<<< HEAD
      * Returns the event type associated with this OAuth 2.0 grant type.
      *
      * @return event type
@@ -53,10 +53,37 @@ public interface OAuth2GrantType extends Provider {
     /**
      * Processes grant request.
      * @param context grant request context
+=======
+     * Returns the name of the OAuth 2.0 grant type implemented by this provider.
+     * This value will be matched against the "grant_type" token request parameter.
+     *
+     * @return grant type name
+     */
+    String getGrantType();
+
+    /**
+     * Checks if the grant implementation supports the request.
+     * The check will be performed after the initial matching against the "grant_type" parameter.
+     * @param context grant request context
+     * @return request supported
+     */
+    default boolean supports(Context context) {
+        return true;
+    }
+
+    /**
+     * Sets grant request context.
+     * @param context grant request context
+     */
+    void setContext(Context context);
+
+    /**
+     * Processes grant request.
+>>>>>>> - rework grant type resolution to use supports() in addition to grant type
      *
      * @return token response
      */
-    Response process(Context context);
+    Response process();
 
     public static class Context {
         protected KeycloakSession session;
@@ -109,6 +136,7 @@ public interface OAuth2GrantType extends Provider {
             this.dPoP = context.dPoP;
         }
 
+<<<<<<< HEAD
         public void setFormParams(MultivaluedHashMap<String, String> formParams) {
             this.formParams = formParams;
         }
@@ -123,6 +151,14 @@ public interface OAuth2GrantType extends Provider {
 
         public void setClientAuthAttributes(Map<String, String> clientAuthAttributes) {
             this.clientAuthAttributes = clientAuthAttributes;
+=======
+        public KeycloakSession getSession() {
+            return session;
+        }
+
+        public void setFormParams(MultivaluedHashMap<String, String> formParams) {
+            this.formParams = formParams;
+>>>>>>> - rework grant type resolution to use supports() in addition to grant type
         }
 
     }

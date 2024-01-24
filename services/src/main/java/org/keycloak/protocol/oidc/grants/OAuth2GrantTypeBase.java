@@ -84,10 +84,15 @@ public abstract class OAuth2GrantTypeBase implements OAuth2GrantType {
     private static final Logger logger = Logger.getLogger(OAuth2GrantTypeBase.class);
 
 <<<<<<< HEAD
+<<<<<<< HEAD
     protected OAuth2GrantType.Context context;
 
 =======
 >>>>>>> OAuth 2.0 Grant Type SPI
+=======
+    protected OAuth2GrantType.Context context;
+
+>>>>>>> - rework grant type resolution to use supports() in addition to grant type
     protected KeycloakSession session;
     protected RealmModel realm;
     protected ClientModel client;
@@ -104,11 +109,17 @@ public abstract class OAuth2GrantTypeBase implements OAuth2GrantType {
     protected HttpHeaders headers;
 
 <<<<<<< HEAD
+<<<<<<< HEAD
     protected void setContext(Context context) {
         this.context = context;
 =======
     protected void initialize(Context context) {
 >>>>>>> OAuth 2.0 Grant Type SPI
+=======
+    @Override
+    public void setContext(Context context) {
+        this.context = context;
+>>>>>>> - rework grant type resolution to use supports() in addition to grant type
         this.session = context.session;
         this.realm = context.realm;
         this.client = context.client;
@@ -131,7 +142,11 @@ public abstract class OAuth2GrantTypeBase implements OAuth2GrantType {
         this.tokenManager = (TokenManager) context.tokenManager;
         this.dPoP = context.dPoP;
     }
+<<<<<<< HEAD
 >>>>>>> OAuth 2.0 Grant Type SPI
+=======
+
+>>>>>>> - rework grant type resolution to use supports() in addition to grant type
     protected Response createTokenResponse(UserModel user, UserSessionModel userSession, ClientSessionContext clientSessionCtx,
         String scopeParam, boolean code, Function<TokenManager.AccessTokenResponseBuilder, ClientPolicyContext> clientPolicyContextGenerator) {
         AccessToken token = tokenManager.createClientAccessToken(session, realm, client, user, userSession, clientSessionCtx);

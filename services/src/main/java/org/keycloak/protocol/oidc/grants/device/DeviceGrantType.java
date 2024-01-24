@@ -26,7 +26,6 @@ import org.keycloak.events.Details;
 import org.keycloak.events.Errors;
 import org.keycloak.events.EventType;
 import org.keycloak.events.EventBuilder;
-import org.keycloak.events.EventType;
 import org.keycloak.models.AuthenticatedClientSessionModel;
 import org.keycloak.models.ClientModel;
 import org.keycloak.models.ClientSessionContext;
@@ -216,6 +215,7 @@ public class DeviceGrantType extends OAuth2GrantTypeBase {
     }
 
     @Override
+<<<<<<< HEAD
     public Response process(Context context) {
 <<<<<<< HEAD
         setContext(context);
@@ -223,6 +223,9 @@ public class DeviceGrantType extends OAuth2GrantTypeBase {
         initialize(context);
 >>>>>>> OAuth 2.0 Grant Type SPI
 
+=======
+    public Response process() {
+>>>>>>> - rework grant type resolution to use supports() in addition to grant type
         if (!realm.getOAuth2DeviceConfig().isOAuth2DeviceAuthorizationGrantEnabled(client)) {
             event.error(Errors.NOT_ALLOWED);
             throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_GRANT,
@@ -362,6 +365,7 @@ public class DeviceGrantType extends OAuth2GrantTypeBase {
     }
 
     @Override
+<<<<<<< HEAD
 >>>>>>> OAuth 2.0 Grant Type SPI
     public EventType getEventType() {
         return EventType.OAUTH2_DEVICE_CODE_TO_TOKEN;
@@ -371,6 +375,8 @@ public class DeviceGrantType extends OAuth2GrantTypeBase {
 }
 =======
     @Override
+=======
+>>>>>>> - rework grant type resolution to use supports() in addition to grant type
     public OAuth2GrantType create(KeycloakSession session) {
         return new DeviceGrantType();
     }

@@ -29,10 +29,10 @@ import org.keycloak.protocol.oidc.TokenExchangeProvider;
 import org.keycloak.OAuth2Constants;
 import org.keycloak.common.Profile;
 import org.keycloak.events.Details;
-import org.keycloak.events.EventType;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.protocol.oidc.TokenExchangeContext;
 import org.keycloak.protocol.oidc.TokenExchangeProvider;
+import org.keycloak.provider.EnvironmentDependentProviderFactory;
 import org.keycloak.utils.ProfileHelper;
 >>>>>>> OAuth 2.0 Grant Type SPI
 
@@ -42,7 +42,7 @@ import org.keycloak.utils.ProfileHelper;
  *
  * @author <a href="mailto:demetrio@carretti.pro">Dmitry Telegin</a> (et al.)
  */
-public class TokenExchangeGrantType extends OAuth2GrantTypeBase {
+public class TokenExchangeGrantType extends OAuth2GrantTypeBase implements EnvironmentDependentProviderFactory {
 
 <<<<<<< HEAD
     @Override
@@ -52,11 +52,15 @@ public class TokenExchangeGrantType extends OAuth2GrantTypeBase {
     private static final String PROVIDER_ID = "token_exchange";
 
     @Override
+<<<<<<< HEAD
     public Response process(Context context) {
         initialize(context);
         ProfileHelper.requireFeature(Profile.Feature.TOKEN_EXCHANGE);
 >>>>>>> OAuth 2.0 Grant Type SPI
 
+=======
+    public Response process() {
+>>>>>>> - rework grant type resolution to use supports() in addition to grant type
         event.detail(Details.AUTH_METHOD, "token_exchange");
         event.client(client);
 
@@ -90,16 +94,21 @@ public class TokenExchangeGrantType extends OAuth2GrantTypeBase {
     }
 
     @Override
+<<<<<<< HEAD
 >>>>>>> OAuth 2.0 Grant Type SPI
     public EventType getEventType() {
         return EventType.TOKEN_EXCHANGE;
+=======
+    public OAuth2GrantType create(KeycloakSession session) {
+        return new TokenExchangeGrantType();
+>>>>>>> - rework grant type resolution to use supports() in addition to grant type
     }
 
 <<<<<<< HEAD
 =======
     @Override
-    public OAuth2GrantType create(KeycloakSession session) {
-        return new TokenExchangeGrantType();
+    public boolean isSupported() {
+        return Profile.isFeatureEnabled(Profile.Feature.TOKEN_EXCHANGE);
     }
 
     @Override

@@ -160,10 +160,14 @@ public enum EventType implements EnumWithStableIndex {
     USER_DISABLED_BY_PERMANENT_LOCKOUT(52, true),
     USER_DISABLED_BY_PERMANENT_LOCKOUT_ERROR(0x10000 + USER_DISABLED_BY_PERMANENT_LOCKOUT.getStableIndex(), false),
 
+<<<<<<< HEAD
     USER_DISABLED_BY_TEMPORARY_LOCKOUT(53,true),
     USER_DISABLED_BY_TEMPORARY_LOCKOUT_ERROR(0x10000 + USER_DISABLED_BY_TEMPORARY_LOCKOUT.getStableIndex(), false),
 
     OAUTH2_EXTENSION_GRANT(54, true),
+=======
+    OAUTH2_EXTENSION_GRANT(53, true),
+>>>>>>> - rework grant type resolution to use supports() in addition to grant type
     OAUTH2_EXTENSION_GRANT_ERROR(0x10000 + OAUTH2_EXTENSION_GRANT.getStableIndex(), true);
 
     private final int stableIndex;

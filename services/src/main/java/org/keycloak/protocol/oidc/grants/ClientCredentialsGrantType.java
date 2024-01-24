@@ -27,7 +27,6 @@ import org.keycloak.OAuthErrorException;
 import org.keycloak.common.constants.ServiceAccountConstants;
 import org.keycloak.events.Details;
 import org.keycloak.events.Errors;
-import org.keycloak.events.EventType;
 import org.keycloak.models.ClientSessionContext;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.UserModel;
@@ -64,6 +63,7 @@ public class ClientCredentialsGrantType extends OAuth2GrantTypeBase {
     private static final Logger logger = Logger.getLogger(ClientCredentialsGrantType.class);
 
     @Override
+<<<<<<< HEAD
     public Response process(Context context) {
 <<<<<<< HEAD
         setContext(context);
@@ -72,6 +72,9 @@ public class ClientCredentialsGrantType extends OAuth2GrantTypeBase {
         initialize(context);
 
 >>>>>>> OAuth 2.0 Grant Type SPI
+=======
+    public Response process() {
+>>>>>>> - rework grant type resolution to use supports() in addition to grant type
         if (client.isBearerOnly()) {
             event.error(Errors.INVALID_CLIENT);
             throw new CorsErrorResponseException(cors, OAuthErrorException.UNAUTHORIZED_CLIENT, "Bearer-only client not allowed to retrieve service account", Response.Status.UNAUTHORIZED);
@@ -202,10 +205,13 @@ public class ClientCredentialsGrantType extends OAuth2GrantTypeBase {
         return OAuth2Constants.CLIENT_CREDENTIALS;
     }
 
+<<<<<<< HEAD
     @Override
 >>>>>>> OAuth 2.0 Grant Type SPI
     public EventType getEventType() {
         return EventType.CLIENT_LOGIN;
     }
 
+=======
+>>>>>>> - rework grant type resolution to use supports() in addition to grant type
 }
