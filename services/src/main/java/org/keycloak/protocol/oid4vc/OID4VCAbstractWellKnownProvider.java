@@ -5,6 +5,7 @@ import jakarta.ws.rs.core.UriInfo;
 import org.jboss.logging.Logger;
 import org.keycloak.models.KeycloakContext;
 import org.keycloak.models.KeycloakSession;
+import org.keycloak.protocol.oid4vc.issuance.OID4VCIssuerEndpoint;
 import org.keycloak.protocol.oid4vc.issuance.signing.VCSigningServiceProviderFactory;
 import org.keycloak.protocol.oid4vc.issuance.signing.VerifiableCredentialsSigningService;
 import org.keycloak.protocol.oid4vc.model.Format;
@@ -63,14 +64,6 @@ public abstract class OID4VCAbstractWellKnownProvider implements WellKnownProvid
 
     }
 
-    public static Set<Format> getFormatsFromString(String formatString) {
-        return Arrays.stream(formatString.split(",")).map(Format::fromString).collect(Collectors.toSet());
-    }
-
-    public static String buildIdFromType(Format formatVO, List<String> types) {
-        return String.format("%s_%s", types, formatVO.toString());
-    }
-
     public static String getIssuer(KeycloakContext context) {
         UriInfo frontendUriInfo = context.getUri(UrlType.FRONTEND);
 
@@ -80,6 +73,6 @@ public abstract class OID4VCAbstractWellKnownProvider implements WellKnownProvid
     }
 
     public static String getCredentialsEndpoint(KeycloakContext context) {
-        return getIssuer(context) + "/protocol/" + OID4VCLoginProtocolFactory.PROTOCOL_ID + "/credential";
+        return getIssuer(context) + "/protocol/" + OID4VCLoginProtocolFactory.PROTOCOL_ID + "/" + OID4VCIssuerEndpoint.CREDENTIAL_PATH;
     }
 }
