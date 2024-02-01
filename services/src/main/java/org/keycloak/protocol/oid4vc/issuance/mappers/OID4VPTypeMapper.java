@@ -20,7 +20,7 @@ import java.util.Set;
  */
 public class OID4VPTypeMapper extends OID4VPMapper {
 
-    public static final String MAPPER_ID = "oid4vp-vc-type-mapper";
+    public static final String MAPPER_ID = "oid4vc-vc-type-mapper";
     public static final String TYPE_KEY = "vcTypeProperty";
 
     private static final List<ProviderConfigProperty> CONFIG_PROPERTIES = new ArrayList<>();

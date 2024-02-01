@@ -23,7 +23,7 @@ import java.util.Optional;
  */
 public class OID4VPUserAttributeMapper extends OID4VPMapper {
 
-	public static final String MAPPER_ID = "oid4vp-user-attribute-mapper";
+	public static final String MAPPER_ID = "oid4vc-user-attribute-mapper";
 	public static final String SUBJECT_PROPERTY_CONFIG_KEY = "subjectProperty";
 	public static final String USER_ATTRIBUTE_KEY = "userAttribute";
 	public static final String AGGREGATE_ATTRIBUTES_KEY = "aggregateAttributes";

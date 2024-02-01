@@ -15,6 +15,7 @@ import org.keycloak.models.utils.KeycloakModelUtils;
 import org.keycloak.protocol.LoginProtocol;
 import org.keycloak.protocol.LoginProtocolFactory;
 import org.keycloak.protocol.oid4vc.issuance.OID4VCIssuerEndpoint;
+import org.keycloak.protocol.oid4vc.issuance.OffsetTimeProvider;
 import org.keycloak.protocol.oid4vc.issuance.VCIssuerException;
 import org.keycloak.protocol.oid4vc.issuance.mappers.OID4VPSubjectIdMapper;
 import org.keycloak.protocol.oid4vc.issuance.mappers.OID4VPTargetRoleMapper;
@@ -51,8 +52,6 @@ public class OID4VCLoginProtocolFactory implements LoginProtocolFactory, OID4VCE
     private static final String EMAIL_MAPPER = "email";
     private static final String LAST_NAME_MAPPER = "last-name";
     private static final String FIRST_NAME_MAPPER = "first-name";
-
-    private final Clock clock = Clock.systemUTC();
 
     private Map<String, ProtocolMapperModel> builtins = new HashMap<>();
 
@@ -97,14 +96,20 @@ public class OID4VCLoginProtocolFactory implements LoginProtocolFactory, OID4VCE
     public Object createProtocolEndpoint(KeycloakSession keycloakSession, EventBuilder event) {
 
         Map<Format, VerifiableCredentialsSigningService> signingServices = new HashMap<>();
-        var realm = keycloakSession.getContext().getRealm();
+        RealmModel realm = keycloakSession.getContext().getRealm();
         realm.getComponentsStream(realm.getId(), VerifiableCredentialsSigningService.class.getName())
                 .forEach(cm -> addServiceFromComponent(signingServices, keycloakSession, cm));
 
         String issuerDid = Optional.ofNullable(keycloakSession.getContext().getRealm().getAttribute("issuerDid"))
                 .orElseThrow(() -> new VCIssuerException("No issuerDid  configured."));
 
-        return new OID4VCIssuerEndpoint(keycloakSession, issuerDid, signingServices, new AppAuthManager.BearerTokenAuthenticator(keycloakSession), OBJECT_MAPPER, clock);
+        return new OID4VCIssuerEndpoint(
+                keycloakSession,
+                issuerDid,
+                signingServices,
+                new AppAuthManager.BearerTokenAuthenticator(keycloakSession),
+                OBJECT_MAPPER,
+                new OffsetTimeProvider());
     }
 
     @Override

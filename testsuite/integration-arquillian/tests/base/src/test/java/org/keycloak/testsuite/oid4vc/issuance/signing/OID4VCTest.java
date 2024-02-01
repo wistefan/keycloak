@@ -19,17 +19,24 @@ package org.keycloak.testsuite.oid4vc.issuance.signing;
 
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.jboss.logging.Logger;
+import org.keycloak.common.Profile;
 import org.keycloak.common.util.CertificateUtils;
 import org.keycloak.common.util.KeyUtils;
 import org.keycloak.common.util.MultivaluedHashMap;
 import org.keycloak.common.util.PemUtils;
 import org.keycloak.crypto.KeyUse;
 import org.keycloak.crypto.KeyWrapper;
+import org.keycloak.models.KeycloakSession;
+import org.keycloak.protocol.oid4vc.OID4VCClientRegistrationProviderFactory;
 import org.keycloak.protocol.oid4vc.issuance.TimeProvider;
 import org.keycloak.protocol.oid4vc.model.CredentialSubject;
+import org.keycloak.protocol.oid4vc.model.Format;
 import org.keycloak.protocol.oid4vc.model.VerifiableCredential;
+import org.keycloak.representations.idm.ClientRepresentation;
 import org.keycloak.representations.idm.ComponentExportRepresentation;
+import org.keycloak.representations.idm.ProtocolMapperRepresentation;
 import org.keycloak.testsuite.AbstractTestRealmKeycloakTest;
+import org.keycloak.testsuite.arquillian.annotation.EnableFeature;
 
 import java.net.URI;
 import java.security.KeyPair;
@@ -47,16 +54,19 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Super class for all signing service tests. Provides convenience methods to ease the testing.
+ * Super class for all OID4VC tests. Provides convenience methods to ease the testing.
  */
-public abstract class SigningServiceTest extends AbstractTestRealmKeycloakTest {
+@EnableFeature(value = Profile.Feature.OID4VC_VCI, skipRestart = true)
+public abstract class OID4VCTest extends AbstractTestRealmKeycloakTest {
 
-    private static final Logger LOGGER = Logger.getLogger(SigningServiceTest.class);
+    private static final Logger LOGGER = Logger.getLogger(OID4VCTest.class);
     protected static final String CONTEXT_URL = "https://www.w3.org/2018/credentials/v1";
     protected static final URI TEST_DID = URI.create("did:web:test.org");
     protected static final List<String> TEST_TYPES = List.of("VerifiableCredential");
     protected static final Date TEST_EXPIRATION_DATE = Date.from(Instant.ofEpochSecond(2000));
     protected static final Date TEST_ISSUANCE_DATE = Date.from(Instant.ofEpochSecond(1000));
+
+    protected static final KeyWrapper RSA_KEY = getRsaKey();
 
     protected static CredentialSubject getCredentialSubject(Map<String, Object> claims) {
         CredentialSubject credentialSubject = new CredentialSubject();
@@ -138,12 +148,11 @@ public abstract class SigningServiceTest extends AbstractTestRealmKeycloakTest {
         }
     }
 
-    protected ComponentExportRepresentation getRsaKeyProvider(KeyWrapper keyWrapper) {
+    public static ComponentExportRepresentation getRsaKeyProvider(KeyWrapper keyWrapper) {
         ComponentExportRepresentation componentExportRepresentation = new ComponentExportRepresentation();
         componentExportRepresentation.setName("rsa-key-provider");
         componentExportRepresentation.setId(UUID.randomUUID().toString());
         componentExportRepresentation.setProviderId("rsa");
-
 
         Certificate certificate = CertificateUtils.generateV1SelfSignedCertificate(
                 new KeyPair((PublicKey) keyWrapper.getPublicKey(), (PrivateKey) keyWrapper.getPrivateKey()), "TestKey");
@@ -156,6 +165,114 @@ public abstract class SigningServiceTest extends AbstractTestRealmKeycloakTest {
                         "priority", List.of("0"),
                         "enabled", List.of("true"),
                         "algorithm", List.of("RS256")
+                )
+        ));
+        return componentExportRepresentation;
+    }
+
+    public static ClientRepresentation getTestClient(String clientId) {
+        ClientRepresentation clientRepresentation = new ClientRepresentation();
+        clientRepresentation.setClientId(clientId);
+        clientRepresentation.setProtocol(OID4VCClientRegistrationProviderFactory.PROTOCOL_ID);
+        clientRepresentation.setEnabled(true);
+        clientRepresentation.setAttributes(Map.of(
+                "vc.test-credential.expiry_in_s", "100",
+                "vc.test-credential.format", Format.JWT_VC.toString(),
+                "vc.test-credential.types", "VerifiableCredential"));
+        clientRepresentation.setProtocolMappers(
+                List.of(
+                        getRoleMapper(clientId),
+                        getEmailMapper(),
+                        getIdMapper(),
+                        getStaticClaimMapper()
+                )
+        );
+        return clientRepresentation;
+    }
+
+    public static ProtocolMapperRepresentation getRoleMapper(String clientId) {
+        ProtocolMapperRepresentation protocolMapperRepresentation = new ProtocolMapperRepresentation();
+        protocolMapperRepresentation.setName("role-mapper");
+        protocolMapperRepresentation.setId(UUID.randomUUID().toString());
+        protocolMapperRepresentation.setProtocol("oid4vc");
+        protocolMapperRepresentation.setProtocolMapper("oid4vc-target-role-mapper");
+        protocolMapperRepresentation.setConfig(
+                Map.of(
+                        "subjectProperty", "roles",
+                        "clientId", clientId,
+                        "supportedCredentialTypes", "VerifiableCredential")
+        );
+        return protocolMapperRepresentation;
+    }
+
+    public static ProtocolMapperRepresentation getEmailMapper() {
+        ProtocolMapperRepresentation protocolMapperRepresentation = new ProtocolMapperRepresentation();
+        protocolMapperRepresentation.setName("email-mapper");
+        protocolMapperRepresentation.setProtocol("oid4vc");
+        protocolMapperRepresentation.setId(UUID.randomUUID().toString());
+        protocolMapperRepresentation.setProtocolMapper("oid4vc-user-attribute-mapper");
+        protocolMapperRepresentation.setConfig(
+                Map.of(
+                        "subjectProperty", "email",
+                        "userAttribute", "email",
+                        "supportedCredentialTypes", "VerifiableCredential")
+        );
+        return protocolMapperRepresentation;
+    }
+
+    public static ProtocolMapperRepresentation getIdMapper() {
+        ProtocolMapperRepresentation protocolMapperRepresentation = new ProtocolMapperRepresentation();
+        protocolMapperRepresentation.setName("id-mapper");
+        protocolMapperRepresentation.setProtocol("oid4vc");
+        protocolMapperRepresentation.setId(UUID.randomUUID().toString());
+        protocolMapperRepresentation.setProtocolMapper("oid4vc-subject-id-mapper");
+        protocolMapperRepresentation.setConfig(
+                Map.of(
+                        "supportedCredentialTypes", "VerifiableCredential")
+        );
+        return protocolMapperRepresentation;
+    }
+
+    public static ProtocolMapperRepresentation getStaticClaimMapper() {
+        ProtocolMapperRepresentation protocolMapperRepresentation = new ProtocolMapperRepresentation();
+        protocolMapperRepresentation.setName("static-mapper");
+        protocolMapperRepresentation.setProtocol("oid4vc");
+        protocolMapperRepresentation.setId(UUID.randomUUID().toString());
+        protocolMapperRepresentation.setProtocolMapper("oid4vc-static-claim-mapper");
+        protocolMapperRepresentation.setConfig(
+                Map.of(
+                        "subjectProperty", "static",
+                        "subjectValue", "Value",
+                        "supportedCredentialTypes", "VerifiableCredential")
+        );
+        return protocolMapperRepresentation;
+    }
+
+    public static KeyWrapper getKeyFromSession(KeycloakSession keycloakSession) {
+        // we only set one key to the realm, thus can just take the first one
+        // if run inside the testsuite, configure is called seperated from the test itself, thus we cannot just take
+        // the key from the `configureTestRealm` method.
+        KeyWrapper kw = keycloakSession
+                .keys()
+                .getKeysStream(keycloakSession.getContext().getRealm())
+                .peek(k -> LOGGER.warnf("THE KEY: %s - %s", k.getKid(), k.getAlgorithm()))
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("No key was configured"));
+        LOGGER.warnf("Kid is %s", kw.getKid());
+        return kw;
+    }
+
+    public static ComponentExportRepresentation getJwtSigningProvider(KeyWrapper keyWrapper) {
+        ComponentExportRepresentation componentExportRepresentation = new ComponentExportRepresentation();
+        componentExportRepresentation.setName("jwt-signing-service");
+        componentExportRepresentation.setId(UUID.randomUUID().toString());
+        componentExportRepresentation.setProviderId("jwt_vc");
+
+        componentExportRepresentation.setConfig(new MultivaluedHashMap<>(
+                Map.of(
+                        "keyId", List.of(keyWrapper.getKid()),
+                        "algorithmType", List.of(keyWrapper.getAlgorithm()),
+                        "tokenType", List.of("JWT")
                 )
         ));
         return componentExportRepresentation;
