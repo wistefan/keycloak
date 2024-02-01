@@ -64,6 +64,8 @@ import org.keycloak.testsuite.util.TestEventsLogger;
 import org.openqa.selenium.WebDriver;
 
 import jakarta.ws.rs.NotFoundException;
+import org.testcontainers.shaded.com.fasterxml.jackson.core.JsonProcessingException;
+import org.testcontainers.shaded.com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -102,7 +104,6 @@ import static org.keycloak.testsuite.util.ServerURLs.removeDefaultPorts;
 import static org.keycloak.testsuite.util.URLUtils.navigateToUri;
 
 /**
- *
  * @author tkyjovsk
  */
 @RunWith(KcArquillian.class)
@@ -233,7 +234,7 @@ public abstract class AbstractKeycloakTest {
         } else {
             log.info("calling all TestCleanup");
             // Remove all sessions
-            testContext.getTestRealmReps().stream().forEach((r)->testingClient.testing().removeUserSessions(r.getRealm()));
+            testContext.getTestRealmReps().stream().forEach((r) -> testingClient.testing().removeUserSessions(r.getRealm()));
 
             // Cleanup objects
             for (TestCleanup cleanup : testContext.getCleanups().values()) {
@@ -294,8 +295,7 @@ public abstract class AbstractKeycloakTest {
         try {
             adminClient.realm(realmName).logoutAll();
             log.info("sessions successfully deleted");
-        }
-        catch (NotFoundException e) {
+        } catch (NotFoundException e) {
             log.warn("realm not found");
         }
     }
@@ -421,9 +421,9 @@ public abstract class AbstractKeycloakTest {
             return "";
         }
         return input
-              .replace("http", "https")
-              .replace("8080", "8543")
-              .replace("8180", "8543");
+                .replace("http", "https")
+                .replace("8080", "8543")
+                .replace("8180", "8543");
     }
 
     protected interface ExecutableTestMethod {
@@ -467,7 +467,7 @@ public abstract class AbstractKeycloakTest {
         // remove all realms (accidentally left by other tests) except for master
         adminClient.realms().findAll().stream()
                 .map(RealmRepresentation::getRealm)
-                .filter(realmName -> ! realmName.equals("master"))
+                .filter(realmName -> !realmName.equals("master"))
                 .forEach(this::removeRealm);
         assertThat(adminClient.realms().findAll().size(), is(equalTo(1)));
     }
@@ -513,6 +513,7 @@ public abstract class AbstractKeycloakTest {
         } catch (NotFoundException ignore) {
             // expected when realm does not exist
         }
+
         adminClient.realms().create(realm);
 
         if (removeVerifyProfileAtImport()) {
@@ -645,7 +646,7 @@ public abstract class AbstractKeycloakTest {
     /**
      * Sets time of day by calculating time offset and using setTimeOffset() to set it.
      *
-     * @param hour hour of day
+     * @param hour   hour of day
      * @param minute minute
      * @param second second
      */
@@ -656,9 +657,9 @@ public abstract class AbstractKeycloakTest {
     /**
      * Sets time of day by calculating time offset and using setTimeOffset() to set it.
      *
-     * @param hour hour of day
-     * @param minute minute
-     * @param second second
+     * @param hour       hour of day
+     * @param minute     minute
+     * @param second     second
      * @param addSeconds additional seconds to add to offset time
      */
     public void setTimeOfDay(int hour, int minute, int second, int addSeconds) {

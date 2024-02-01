@@ -46,6 +46,7 @@ import org.keycloak.services.managers.AuthenticationManager;
 
 import java.net.URI;
 import java.time.Clock;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
@@ -73,7 +74,7 @@ public class OID4VCIssuerEndpoint {
     private final KeycloakSession session;
     private final AppAuthManager.BearerTokenAuthenticator bearerTokenAuthenticator;
     private final ObjectMapper objectMapper;
-    private final Clock clock;
+    private final TimeProvider timeProvider;
 
     private final String issuerDid;
 
@@ -83,11 +84,11 @@ public class OID4VCIssuerEndpoint {
                                 String issuerDid,
                                 Map<Format, VerifiableCredentialsSigningService> signingServices,
                                 AppAuthManager.BearerTokenAuthenticator authenticator,
-                                ObjectMapper objectMapper, Clock clock) {
+                                ObjectMapper objectMapper, TimeProvider timeProvider) {
         this.session = session;
         this.bearerTokenAuthenticator = authenticator;
         this.objectMapper = objectMapper;
-        this.clock = clock;
+        this.timeProvider = timeProvider;
         this.issuerDid = issuerDid;
         this.signingServices = signingServices;
 
@@ -359,7 +360,8 @@ public class OID4VCIssuerEndpoint {
         // set the required claims
         VerifiableCredential vc = new VerifiableCredential()
                 .setIssuer(URI.create(issuerDid))
-                .setIssuanceDate(Date.from(clock.instant())).setType(vcTypes);
+                .setIssuanceDate(Date.from(Instant.ofEpochMilli(timeProvider.currentTimeMillis())))
+                .setType(vcTypes);
 
         Map<String, Object> subjectClaims = new HashMap<>();
         protocolMappers

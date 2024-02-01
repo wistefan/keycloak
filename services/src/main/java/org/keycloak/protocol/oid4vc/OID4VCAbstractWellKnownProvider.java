@@ -54,6 +54,7 @@ public abstract class OID4VCAbstractWellKnownProvider implements WellKnownProvid
         return keycloakSession.getContext()
                 .getRealm()
                 .getClientsStream()
+                .filter(cm -> cm.getProtocol() != null)
                 .filter(cm -> cm.getProtocol().equals(OID4VCClientRegistrationProviderFactory.PROTOCOL_ID))
                 .map(cm -> OID4VCClientRegistrationProvider.fromClientAttributes(cm.getClientId(), cm.getAttributes()))
                 .map(OID4VCClient::getSupportedVCTypes)

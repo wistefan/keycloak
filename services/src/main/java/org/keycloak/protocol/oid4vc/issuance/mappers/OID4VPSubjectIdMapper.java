@@ -19,7 +19,7 @@ import java.util.UUID;
  */
 public class OID4VPSubjectIdMapper extends OID4VPMapper {
 
-	public static final String MAPPER_ID = "oid4vp-subject-id-mapper";
+	public static final String MAPPER_ID = "oid4vc-subject-id-mapper";
 	public static final String ID_KEY = "subjectIdProperty";
 
 	private static final List<ProviderConfigProperty> CONFIG_PROPERTIES = new ArrayList<>();
