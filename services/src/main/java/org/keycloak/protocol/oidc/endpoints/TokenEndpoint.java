@@ -22,89 +22,34 @@ import org.keycloak.http.HttpRequest;
 import org.keycloak.http.HttpResponse;
 import org.keycloak.OAuth2Constants;
 import org.keycloak.OAuthErrorException;
-import org.keycloak.authentication.AuthenticationProcessor;
-import org.keycloak.authorization.AuthorizationProvider;
-import org.keycloak.authorization.authorization.AuthorizationTokenService;
-import org.keycloak.authorization.util.Tokens;
 import org.keycloak.common.ClientConnection;
-import org.keycloak.common.Profile;
-import org.keycloak.common.VerificationException;
-import org.keycloak.common.constants.ServiceAccountConstants;
-import org.keycloak.common.util.KeycloakUriBuilder;
-import org.keycloak.constants.AdapterConstants;
 import org.keycloak.events.Details;
-import org.keycloak.events.Errors;
 import org.keycloak.events.EventBuilder;
-import org.keycloak.events.EventType;
-import org.keycloak.jose.jws.JWSInput;
-import org.keycloak.jose.jws.JWSInputException;
 import org.keycloak.models.AuthenticatedClientSessionModel;
-import org.keycloak.models.AuthenticationFlowModel;
 import org.keycloak.models.ClientModel;
-import org.keycloak.models.ClientScopeModel;
-import org.keycloak.models.ClientSessionContext;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
-import org.keycloak.models.UserModel;
-import org.keycloak.models.UserSessionModel;
-import org.keycloak.models.utils.AuthenticationFlowResolver;
 import org.keycloak.protocol.oidc.OIDCAdvancedConfigWrapper;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
-import org.keycloak.protocol.oidc.TokenExchangeContext;
-import org.keycloak.protocol.oidc.TokenExchangeProvider;
 import org.keycloak.protocol.oidc.TokenManager;
-import org.keycloak.protocol.oidc.grants.ciba.CibaGrantType;
-import org.keycloak.protocol.oidc.grants.device.DeviceGrantType;
+import org.keycloak.protocol.oidc.grants.OAuth2GrantManager;
+import org.keycloak.protocol.oidc.grants.OAuth2GrantType;
 import org.keycloak.protocol.oidc.utils.AuthorizeClientUtil;
-import org.keycloak.protocol.oidc.utils.OAuth2Code;
-import org.keycloak.protocol.oidc.utils.OAuth2CodeParser;
-import org.keycloak.protocol.oidc.utils.PkceUtils;
 import org.keycloak.protocol.saml.JaxrsSAML2BindingBuilder;
 import org.keycloak.protocol.saml.SamlClient;
 import org.keycloak.protocol.saml.SamlProtocol;
-import org.keycloak.rar.AuthorizationRequestContext;
-import org.keycloak.representations.AccessToken;
-import org.keycloak.representations.AccessTokenResponse;
 import org.keycloak.representations.dpop.DPoP;
-import org.keycloak.representations.idm.authorization.AuthorizationRequest.Metadata;
 import org.keycloak.saml.common.constants.JBossSAMLConstants;
 import org.keycloak.saml.common.constants.JBossSAMLURIConstants;
 import org.keycloak.saml.common.exceptions.ConfigurationException;
 import org.keycloak.saml.common.exceptions.ProcessingException;
 import org.keycloak.saml.common.util.DocumentUtil;
 import org.keycloak.services.CorsErrorResponseException;
-import org.keycloak.services.ServicesLogger;
-import org.keycloak.services.Urls;
-import org.keycloak.services.clientpolicy.ClientPolicyContext;
-import org.keycloak.services.clientpolicy.ClientPolicyException;
-import org.keycloak.services.clientpolicy.context.ResourceOwnerPasswordCredentialsContext;
-import org.keycloak.services.clientpolicy.context.ResourceOwnerPasswordCredentialsResponseContext;
-import org.keycloak.services.clientpolicy.context.ServiceAccountTokenRequestContext;
-import org.keycloak.services.clientpolicy.context.ServiceAccountTokenResponseContext;
-import org.keycloak.services.clientpolicy.context.TokenRefreshContext;
-import org.keycloak.services.clientpolicy.context.TokenRefreshResponseContext;
-import org.keycloak.services.clientpolicy.context.TokenRequestContext;
-import org.keycloak.services.clientpolicy.context.TokenResponseContext;
-import org.keycloak.services.managers.AppAuthManager;
-import org.keycloak.services.managers.AuthenticationManager;
-import org.keycloak.services.managers.AuthenticationSessionManager;
-import org.keycloak.services.managers.ClientManager;
-import org.keycloak.services.managers.RealmManager;
-import org.keycloak.services.managers.UserSessionManager;
 import org.keycloak.services.resources.Cors;
-import org.keycloak.services.util.AuthorizationContextUtil;
-import org.keycloak.services.util.DefaultClientSessionContext;
-import org.keycloak.services.util.DPoPUtil;
-import org.keycloak.services.util.MtlsHoKTokenUtil;
-import org.keycloak.sessions.AuthenticationSessionModel;
-import org.keycloak.sessions.RootAuthenticationSessionModel;
-import org.keycloak.util.TokenUtil;
-import org.keycloak.utils.ProfileHelper;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
 import jakarta.ws.rs.Consumes;
-import jakarta.ws.rs.InternalServerErrorException;
 import jakarta.ws.rs.OPTIONS;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
@@ -119,10 +64,6 @@ import javax.xml.namespace.QName;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.function.Function;
-import java.util.function.Supplier;
-import java.util.stream.Stream;
 
 /**
  * @author <a href="mailto:sthorger@redhat.com">Stian Thorgersen</a>
@@ -135,10 +76,6 @@ public class TokenEndpoint {
     private Map<String, String> clientAuthAttributes;
     private OIDCAdvancedConfigWrapper clientConfig;
     private DPoP dPoP;
-
-    private enum Action {
-        AUTHORIZATION_CODE, REFRESH_TOKEN, PASSWORD, CLIENT_CREDENTIALS, TOKEN_EXCHANGE, PERMISSION, OAUTH2_DEVICE_CODE, CIBA
-    }
 
     private final KeycloakSession session;
 
@@ -154,9 +91,10 @@ public class TokenEndpoint {
     private final RealmModel realm;
     private final EventBuilder event;
 
-    private Action action;
-
     private String grantType;
+    private List<OAuth2GrantType> grants;
+    private OAuth2GrantType grant;
+    private OAuth2GrantType.Context context;
 
     private Cors cors;
 
@@ -195,31 +133,18 @@ public class TokenEndpoint {
         checkRealm();
         checkGrantType();
 
-        if (!action.equals(Action.PERMISSION)) {
+        if (!grantType.equals(OAuth2Constants.UMA_GRANT_TYPE)) {
             checkClient();
             checkParameterDuplicated();
         }
 
-        switch (action) {
-            case AUTHORIZATION_CODE:
-                return codeToToken();
-            case REFRESH_TOKEN:
-                return refreshTokenGrant();
-            case PASSWORD:
-                return resourceOwnerPasswordCredentialsGrant();
-            case CLIENT_CREDENTIALS:
-                return clientCredentialsGrant();
-            case TOKEN_EXCHANGE:
-                return tokenExchange();
-            case PERMISSION:
-                return permissionGrant();
-            case OAUTH2_DEVICE_CODE:
-                return oauth2DeviceCodeToToken();
-            case CIBA:
-                return cibaGrant();
-        }
+        context = new OAuth2GrantType.Context(session, realm,
+                client, clientConfig, clientConnection, clientAuthAttributes,
+                request, httpResponse, headers, formParams, event, cors, tokenManager, dPoP);
 
-        throw new RuntimeException("Unknown action " + action);
+        resolveGrantType();
+        grant.setContext(context);
+        return grant.process();
     }
 
     @Path("introspect")
@@ -267,38 +192,17 @@ public class TokenEndpoint {
             throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_REQUEST, "Missing form parameter: " + OIDCLoginProtocol.GRANT_TYPE_PARAM, Response.Status.BAD_REQUEST);
         }
 
-        if (grantType.equals(OAuth2Constants.AUTHORIZATION_CODE)) {
-            event.event(EventType.CODE_TO_TOKEN);
-            action = Action.AUTHORIZATION_CODE;
-        } else if (grantType.equals(OAuth2Constants.REFRESH_TOKEN)) {
-            event.event(EventType.REFRESH_TOKEN);
-            action = Action.REFRESH_TOKEN;
-        } else if (grantType.equals(OAuth2Constants.PASSWORD)) {
-            event.event(EventType.LOGIN);
-            action = Action.PASSWORD;
-        } else if (grantType.equals(OAuth2Constants.CLIENT_CREDENTIALS)) {
-            event.event(EventType.CLIENT_LOGIN);
-            action = Action.CLIENT_CREDENTIALS;
-        } else if (grantType.equals(OAuth2Constants.TOKEN_EXCHANGE_GRANT_TYPE)) {
-            event.event(EventType.TOKEN_EXCHANGE);
-            action = Action.TOKEN_EXCHANGE;
-        } else if (grantType.equals(OAuth2Constants.UMA_GRANT_TYPE)) {
-            event.event(EventType.PERMISSION_TOKEN);
-            action = Action.PERMISSION;
-        } else if (grantType.equals(OAuth2Constants.DEVICE_CODE_GRANT_TYPE)) {
-            if (!Profile.isFeatureEnabled(Profile.Feature.DEVICE_FLOW)) {
-                throw newUnsupportedGrantTypeException();
-            }
-            event.event(EventType.OAUTH2_DEVICE_CODE_TO_TOKEN);
-            action = Action.OAUTH2_DEVICE_CODE;
-        } else if (grantType.equals(OAuth2Constants.CIBA_GRANT_TYPE)) {
-            event.event(EventType.AUTHREQID_TO_TOKEN);
-            action = Action.CIBA;
-        } else {
+        grants = OAuth2GrantManager.resolve(grantType);
+        if (grants.isEmpty()) {
             throw newUnsupportedGrantTypeException();
         }
 
+        event.event(OAuth2GrantManager.grantToEvent(grantType));
         event.detail(Details.GRANT_TYPE, grantType);
+    }
+
+    private void resolveGrantType() {
+        grant = OAuth2GrantManager.resolve(grants, context).orElseThrow(() -> newUnsupportedGrantTypeException());
     }
 
     private CorsErrorResponseException newUnsupportedGrantTypeException() {

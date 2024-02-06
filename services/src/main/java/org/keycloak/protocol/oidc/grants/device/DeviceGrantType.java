@@ -21,6 +21,7 @@ import static org.keycloak.protocol.oidc.OIDCLoginProtocolService.tokenServiceBa
 
 import org.keycloak.OAuth2Constants;
 import org.keycloak.OAuthErrorException;
+import org.keycloak.common.Profile;
 import org.keycloak.events.Details;
 import org.keycloak.events.Errors;
 import org.keycloak.events.EventBuilder;
@@ -36,12 +37,14 @@ import org.keycloak.models.RealmModel;
 import org.keycloak.models.SingleUseObjectProvider;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.UserSessionModel;
+import org.keycloak.provider.EnvironmentDependentProviderFactory;
 import org.keycloak.protocol.LoginProtocol;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 import org.keycloak.protocol.oidc.OIDCLoginProtocolService;
 import org.keycloak.protocol.oidc.TokenManager;
 import org.keycloak.protocol.oidc.endpoints.AuthorizationEndpoint;
-import org.keycloak.protocol.oidc.endpoints.TokenEndpoint;
+import org.keycloak.protocol.oidc.grants.OAuth2GrantType;
+import org.keycloak.protocol.oidc.grants.OAuth2GrantTypeBase;
 import org.keycloak.protocol.oidc.grants.device.clientpolicy.context.DeviceTokenRequestContext;
 import org.keycloak.protocol.oidc.grants.device.clientpolicy.context.DeviceTokenResponseContext;
 import org.keycloak.protocol.oidc.grants.device.endpoints.DeviceEndpoint;
@@ -51,12 +54,10 @@ import org.keycloak.services.ErrorResponseException;
 import org.keycloak.services.clientpolicy.ClientPolicyException;
 import org.keycloak.services.managers.AuthenticationManager;
 import org.keycloak.services.managers.UserSessionCrossDCManager;
-import org.keycloak.services.resources.Cors;
 import org.keycloak.services.resources.RealmsResource;
 import org.keycloak.services.util.DefaultClientSessionContext;
 import org.keycloak.sessions.AuthenticationSessionModel;
 
-import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriBuilder;
 import jakarta.ws.rs.core.UriInfo;
@@ -65,10 +66,15 @@ import java.net.URI;
 import java.util.Map;
 
 /**
+ * OAuth 2.0 Device Authorization Grant
+ * https://datatracker.ietf.org/doc/html/rfc8628#section-3.4
+ *
  * @author <a href="mailto:h2-wada@nri.co.jp">Hiroyuki Wada</a>
  * @author <a href="mailto:michito.okai.zn@hitachi.com">Michito Okai</a>
  */
-public class DeviceGrantType {
+public class DeviceGrantType extends OAuth2GrantTypeBase implements EnvironmentDependentProviderFactory {
+
+    private static final String PROVIDER_ID = "device_code";
 
     // OAuth 2.0 Device Authorization Grant
     public static final String OAUTH2_DEVICE_VERIFIED_USER_CODE = "OAUTH2_DEVICE_VERIFIED_USER_CODE";
@@ -200,30 +206,8 @@ public class DeviceGrantType {
         return false;
     }
 
-    private MultivaluedMap<String, String> formParams;
-    private ClientModel client;
-
-    private KeycloakSession session;
-
-    private TokenEndpoint tokenEndpoint;
-
-    private final RealmModel realm;
-    private final EventBuilder event;
-
-    private Cors cors;
-
-    public DeviceGrantType(MultivaluedMap<String, String> formParams, ClientModel client, KeycloakSession session,
-        TokenEndpoint tokenEndpoint, RealmModel realm, EventBuilder event, Cors cors) {
-        this.formParams = formParams;
-        this.client = client;
-        this.session = session;
-        this.tokenEndpoint = tokenEndpoint;
-        this.realm = realm;
-        this.event = event;
-        this.cors = cors;
-    }
-
-    public Response oauth2DeviceFlow() {
+    @Override
+    public Response process() {
         if (!realm.getOAuth2DeviceConfig().isOAuth2DeviceAuthorizationGrantEnabled(client)) {
             event.error(Errors.NOT_ALLOWED);
             throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_GRANT,
@@ -352,6 +336,27 @@ public class DeviceGrantType {
         // Set nonce as an attribute in the ClientSessionContext. Will be used for the token generation
         clientSessionCtx.setAttribute(OIDCLoginProtocol.NONCE_PARAM, deviceCodeModel.getNonce());
 
-        return tokenEndpoint.createTokenResponse(user, userSession, clientSessionCtx, scopeParam, false, s -> {return new DeviceTokenResponseContext(deviceCodeModel, formParams, clientSession, s);});
+        return createTokenResponse(user, userSession, clientSessionCtx, scopeParam, false, s -> {return new DeviceTokenResponseContext(deviceCodeModel, formParams, clientSession, s);});
     }
+
+    @Override
+    public String getGrantType() {
+        return OAuth2Constants.DEVICE_CODE_GRANT_TYPE;
+    }
+
+    @Override
+    public OAuth2GrantType create(KeycloakSession session) {
+        return new DeviceGrantType();
+    }
+
+    @Override
+    public boolean isSupported() {
+        return Profile.isFeatureEnabled(Profile.Feature.DEVICE_FLOW);
+    }
+
+    @Override
+    public String getId() {
+        return PROVIDER_ID;
+    }
+
 }
