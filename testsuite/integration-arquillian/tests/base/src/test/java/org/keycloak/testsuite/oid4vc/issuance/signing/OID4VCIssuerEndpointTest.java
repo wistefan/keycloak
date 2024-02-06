@@ -1,12 +1,11 @@
 package org.keycloak.testsuite.oid4vc.issuance.signing;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.core.Response;
 import org.apache.http.HttpStatus;
 import org.jboss.logging.Logger;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.keycloak.common.crypto.CryptoIntegration;
 import org.keycloak.common.util.MultivaluedHashMap;
@@ -15,19 +14,25 @@ import org.keycloak.models.KeycloakSession;
 import org.keycloak.protocol.oid4vc.issuance.OID4VCIssuerEndpoint;
 import org.keycloak.protocol.oid4vc.issuance.TimeProvider;
 import org.keycloak.protocol.oid4vc.issuance.signing.JwtSigningService;
+import org.keycloak.protocol.oid4vc.model.CredentialOfferURI;
 import org.keycloak.protocol.oid4vc.model.Format;
+import org.keycloak.representations.idm.ClientRepresentation;
 import org.keycloak.representations.idm.RealmRepresentation;
 import org.keycloak.services.managers.AppAuthManager;
-import org.keycloak.testsuite.runonserver.RunOnServerException;
+import org.keycloak.testsuite.util.TokenUtil;
 
 import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 public class OID4VCIssuerEndpointTest extends OID4VCTest {
 
     private static final Logger LOGGER = Logger.getLogger(JwtSigningServiceTest.class);
+
+    @Rule
+    public TokenUtil tokenUtil = new TokenUtil();
 
     @Before
     public void setup() {
@@ -35,22 +40,23 @@ public class OID4VCIssuerEndpointTest extends OID4VCTest {
     }
 
     @Test
-    public void testGetCredentialOfferURI() {
-        try {
+    public void testGetCredentialOfferURI() throws Exception {
+        String token = tokenUtil.getToken();
+        testingClient
+                .server(TEST_REALM_NAME)
+                .run((session) -> {
+                    try {
+                        testGetCredentialOfferURI(token, session);
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                });
 
-            getTestingClient()
-                    .server(TEST_REALM_NAME)
-                    .run((session) -> testGetCredentialOfferURI(session));
-        } catch (Exception e) {
-            if (e instanceof RunOnServerException && e.getCause() instanceof BadRequestException) {
-                BadRequestException bre = (BadRequestException) e.getCause();
-                LOGGER.warnf("Message: %s", bre.getMessage());
-                e.printStackTrace();
-            }
-        }
     }
 
-    public static void testGetCredentialOfferURI(KeycloakSession session) {
+    public static void testGetCredentialOfferURI(String token, KeycloakSession session) {
+        AppAuthManager.BearerTokenAuthenticator authenticator = new AppAuthManager.BearerTokenAuthenticator(session);
+        authenticator.setTokenString(token);
         TimeProvider timeProvider = new OID4VCTest.StaticTimeProvider(1000);
         JwtSigningService jwtSigningService = new JwtSigningService(
                 session,
@@ -63,14 +69,17 @@ public class OID4VCIssuerEndpointTest extends OID4VCTest {
                 session,
                 "did:web:issuer.org",
                 Map.of(Format.JWT_VC, jwtSigningService),
-                new AppAuthManager.BearerTokenAuthenticator(session),
+                authenticator,
                 new ObjectMapper(),
                 timeProvider);
-
         Response response = oid4VCIssuerEndpoint.getCredentialOfferURI("test-credential");
 
-        LOGGER.warnf("The uri %s", response.getEntity());
         assertEquals("An offer uri should have been returned.", HttpStatus.SC_OK, response.getStatus());
+        CredentialOfferURI credentialOfferURI = new ObjectMapper().convertValue(response.getEntity(), CredentialOfferURI.class);
+        assertNotNull("A nonce should be included.", credentialOfferURI.getNonce());
+        assertNotNull("The issuer uri should be provided.", credentialOfferURI.getIssuer());
+
+        assertNotNull("", session.getContext().getAuthenticationSession().getUserSessionNotes().get(credentialOfferURI.getNonce()));
     }
 
     @Override
@@ -84,10 +93,23 @@ public class OID4VCIssuerEndpointTest extends OID4VCTest {
                             "org.keycloak.protocol.oid4vc.issuance.signing.VerifiableCredentialsSigningService", List.of(getJwtSigningProvider(RSA_KEY))
                     )));
         }
+        ClientRepresentation clientRepresentation = getTestClient("did:web:test.org");
         if (testRealm.getClients() != null) {
-            testRealm.getClients().add(getTestClient("did:web:test.org"));
+            testRealm.getClients().add(clientRepresentation);
         } else {
-            testRealm.setClients(List.of(getTestClient("did:web:test.org")));
+            testRealm.setClients(List.of(clientRepresentation));
+        }
+        if (testRealm.getRoles() != null) {
+            testRealm.getRoles().getClient()
+                    .put(clientRepresentation.getClientId(), List.of(getRoleRepresentation("testRole", clientRepresentation.getClientId())));
+        } else {
+            testRealm.getRoles()
+                    .setClient(Map.of(clientRepresentation.getClientId(), List.of(getRoleRepresentation("testRole", clientRepresentation.getClientId()))));
+        }
+        if (testRealm.getUsers() != null) {
+            testRealm.getUsers().add(getUserRepresentation(Map.of(clientRepresentation.getClientId(), List.of("testRole"))));
+        } else {
+            testRealm.setUsers(List.of(getUserRepresentation(Map.of(clientRepresentation.getClientId(), List.of("testRole")))));
         }
     }
 
