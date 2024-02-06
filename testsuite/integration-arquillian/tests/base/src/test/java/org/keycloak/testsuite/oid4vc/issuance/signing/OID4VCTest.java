@@ -27,6 +27,7 @@ import org.keycloak.common.util.PemUtils;
 import org.keycloak.crypto.KeyUse;
 import org.keycloak.crypto.KeyWrapper;
 import org.keycloak.models.KeycloakSession;
+import org.keycloak.models.utils.KeycloakModelUtils;
 import org.keycloak.protocol.oid4vc.OID4VCClientRegistrationProviderFactory;
 import org.keycloak.protocol.oid4vc.issuance.TimeProvider;
 import org.keycloak.protocol.oid4vc.model.CredentialSubject;
@@ -35,8 +36,12 @@ import org.keycloak.protocol.oid4vc.model.VerifiableCredential;
 import org.keycloak.representations.idm.ClientRepresentation;
 import org.keycloak.representations.idm.ComponentExportRepresentation;
 import org.keycloak.representations.idm.ProtocolMapperRepresentation;
+import org.keycloak.representations.idm.RoleRepresentation;
+import org.keycloak.representations.idm.UserRepresentation;
 import org.keycloak.testsuite.AbstractTestRealmKeycloakTest;
 import org.keycloak.testsuite.arquillian.annotation.EnableFeature;
+import org.keycloak.testsuite.util.RoleBuilder;
+import org.keycloak.testsuite.util.UserBuilder;
 
 import java.net.URI;
 import java.security.KeyPair;
@@ -276,6 +281,35 @@ public abstract class OID4VCTest extends AbstractTestRealmKeycloakTest {
                 )
         ));
         return componentExportRepresentation;
+    }
+
+    public static UserRepresentation getUserRepresentation(Map<String, List<String>> clientRoles) {
+        UserBuilder userBuilder = UserBuilder.create()
+                .id(KeycloakModelUtils.generateId())
+                .username("john")
+                .enabled(true)
+                .email("john@email.cz")
+                .emailVerified(true)
+                .firstName("John")
+                .lastName("Doe")
+                .password("password")
+                .role("account", "manage-account")
+                .role("account", "view-profile");
+
+        clientRoles.entrySet().forEach(entry -> {
+            entry.getValue().forEach(role -> userBuilder.role(entry.getKey(), role));
+        });
+
+        return userBuilder.build();
+    }
+
+    public static RoleRepresentation getRoleRepresentation(String roleName, String clientId) {
+
+        RoleRepresentation role = new RoleRepresentation();
+        role.setName(roleName);
+        role.setId(clientId);
+        role.setClientRole(true);
+        return role;
     }
 
     static class StaticTimeProvider implements TimeProvider {
