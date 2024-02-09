@@ -6,4 +6,5 @@ org.keycloak.protocol.oidc.grants.ResourceOwnerPasswordCredentialsGrantType
 org.keycloak.protocol.oidc.grants.TokenExchangeGrantType
 org.keycloak.protocol.oidc.grants.ciba.CibaGrantType
 org.keycloak.protocol.oidc.grants.device.DeviceGrantType
+org.keycloak.protocol.oidc.grants.PreAuthorizedCodeGrantType
 

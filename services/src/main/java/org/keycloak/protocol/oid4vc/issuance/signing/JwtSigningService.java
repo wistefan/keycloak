@@ -43,7 +43,6 @@ public class JwtSigningService extends SigningService<String> {
     private static final Logger LOGGER = Logger.getLogger(JwtSigningService.class);
 
     private static final String ID_TEMPLATE = "urn:uuid:%s";
-    private static final String TOKEN_TYPE = "JWT";
     private static final String VC_CLAIM_KEY = "vc";
     private static final String ID_CLAIM_KEY = "id";
 
@@ -53,15 +52,23 @@ public class JwtSigningService extends SigningService<String> {
     private final String tokenType;
     protected final String issuerDid;
 
-    public JwtSigningService(KeycloakSession keycloakSession, String keyId, String algorithmType, String tokenType, String issuerDid, TimeProvider timeProvider) {
+    public JwtSigningService(KeycloakSession keycloakSession, String keyId, String algorithmType, String tokenType, String issuerDid, TimeProvider timeProvider, Optional<String> kid) {
         super(keycloakSession, keyId, algorithmType);
         this.issuerDid = issuerDid;
         this.timeProvider = timeProvider;
         this.tokenType = tokenType;
+
         KeyWrapper signingKey = getKey(keyId, algorithmType);
         if (signingKey == null) {
             throw new SigningServiceException(String.format("No key for id %s and algorithm %s available.", keyId, algorithmType));
         }
+        // set the configured kid if present.
+        if (kid.isPresent()) {
+            // we need to clone the key first, to not change the kid of the original key so that the next request still can find it.
+            signingKey = signingKey.cloneKey();
+            signingKey.setKid(keyId);
+        }
+        kid.ifPresent(signingKey::setKid);
         SignatureProvider signatureProvider = keycloakSession.getProvider(SignatureProvider.class, algorithmType);
         signatureSignerContext = signatureProvider.signer(signingKey);
 
@@ -97,8 +104,8 @@ public class JwtSigningService extends SigningService<String> {
                                 .get(ID_CLAIM_KEY))
                 .map(Object::toString)
                 .ifPresent(jsonWebToken::subject);
-
         return new JWSBuilder()
+                .kid(issuerDid)
                 .type(tokenType)
                 .jsonContent(jsonWebToken)
                 .sign(signatureSignerContext);

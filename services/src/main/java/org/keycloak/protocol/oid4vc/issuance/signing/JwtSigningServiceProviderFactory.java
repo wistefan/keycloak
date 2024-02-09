@@ -47,6 +47,7 @@ public class JwtSigningServiceProviderFactory implements VCSigningServiceProvide
         String keyId = model.get(SigningProperties.KEY_ID.getKey());
         String algorithmType = model.get(SigningProperties.ALGORITHM_TYPE.getKey());
         String tokenType = model.get(SigningProperties.TOKEN_TYPE.getKey());
+        Optional<String> kid = Optional.ofNullable(model.get(SigningProperties.KID_HEADER.getKey()));
         String issuerDid = Optional.ofNullable(
                         session
                                 .getContext()
@@ -54,7 +55,7 @@ public class JwtSigningServiceProviderFactory implements VCSigningServiceProvide
                                 .getAttribute(ISSUER_DID_REALM_ATTRIBUTE_KEY))
                 .orElseThrow(() -> new VCIssuerException("No issuerDid configured."));
 
-        return new JwtSigningService(session, keyId, algorithmType, tokenType, issuerDid, new OffsetTimeProvider());
+        return new JwtSigningService(session, keyId, algorithmType, tokenType, issuerDid, new OffsetTimeProvider(), kid);
     }
 
     @Override
@@ -67,6 +68,7 @@ public class JwtSigningServiceProviderFactory implements VCSigningServiceProvide
         return VCSigningServiceProviderFactory.configurationBuilder()
                 .property(SigningProperties.ALGORITHM_TYPE.asConfigProperty())
                 .property(SigningProperties.TOKEN_TYPE.asConfigProperty())
+                .property(SigningProperties.KID_HEADER.asConfigProperty())
                 .build();
     }
 

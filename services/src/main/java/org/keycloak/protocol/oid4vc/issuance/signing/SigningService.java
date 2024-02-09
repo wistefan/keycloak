@@ -17,6 +17,7 @@
 
 package org.keycloak.protocol.oid4vc.issuance.signing;
 
+import org.jboss.logging.Logger;
 import org.keycloak.crypto.KeyUse;
 import org.keycloak.crypto.KeyWrapper;
 import org.keycloak.models.KeycloakSession;
@@ -27,6 +28,8 @@ import org.keycloak.models.KeycloakSession;
  * @author <a href="https://github.com/wistefan">Stefan Wiedemann</a>
  */
 public abstract class SigningService<T> implements VerifiableCredentialsSigningService<T> {
+
+    private static final Logger LOGGER = Logger.getLogger(SigningService.class);
 
     protected final KeycloakSession keycloakSession;
     protected final String keyId;

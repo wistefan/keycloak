@@ -17,7 +17,18 @@
 
 package org.keycloak.protocol.oidc.endpoints;
 
+import jakarta.ws.rs.InternalServerErrorException;
 import org.jboss.logging.Logger;
+import org.keycloak.authentication.AuthenticationProcessor;
+import org.keycloak.authorization.AuthorizationProvider;
+import org.keycloak.authorization.authorization.AuthorizationTokenService;
+import org.keycloak.authorization.util.Tokens;
+import org.keycloak.common.Profile;
+import org.keycloak.common.VerificationException;
+import org.keycloak.common.constants.ServiceAccountConstants;
+import org.keycloak.common.util.KeycloakUriBuilder;
+import org.keycloak.constants.AdapterConstants;
+import org.keycloak.events.Errors;
 import org.keycloak.http.HttpRequest;
 import org.keycloak.http.HttpResponse;
 import org.keycloak.OAuth2Constants;
@@ -25,27 +36,73 @@ import org.keycloak.OAuthErrorException;
 import org.keycloak.common.ClientConnection;
 import org.keycloak.events.Details;
 import org.keycloak.events.EventBuilder;
+import org.keycloak.jose.jws.JWSInput;
+import org.keycloak.jose.jws.JWSInputException;
 import org.keycloak.models.AuthenticatedClientSessionModel;
+import org.keycloak.models.AuthenticationFlowModel;
 import org.keycloak.models.ClientModel;
+import org.keycloak.models.ClientScopeModel;
+import org.keycloak.models.ClientSessionContext;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
+import org.keycloak.models.UserModel;
+import org.keycloak.models.UserSessionModel;
+import org.keycloak.models.utils.AuthenticationFlowResolver;
 import org.keycloak.protocol.oidc.OIDCAdvancedConfigWrapper;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
+import org.keycloak.protocol.oidc.TokenExchangeContext;
+import org.keycloak.protocol.oidc.TokenExchangeProvider;
 import org.keycloak.protocol.oidc.TokenManager;
 import org.keycloak.protocol.oidc.grants.OAuth2GrantManager;
 import org.keycloak.protocol.oidc.grants.OAuth2GrantType;
+import org.keycloak.protocol.oidc.grants.PreAuthorizedCodeGrantType;
+import org.keycloak.protocol.oidc.grants.ciba.CibaGrantType;
+import org.keycloak.protocol.oidc.grants.device.DeviceGrantType;
 import org.keycloak.protocol.oidc.utils.AuthorizeClientUtil;
+import org.keycloak.protocol.oidc.utils.OAuth2Code;
+import org.keycloak.protocol.oidc.utils.OAuth2CodeParser;
+import org.keycloak.protocol.oidc.utils.PkceUtils;
 import org.keycloak.protocol.saml.JaxrsSAML2BindingBuilder;
 import org.keycloak.protocol.saml.SamlClient;
 import org.keycloak.protocol.saml.SamlProtocol;
+import org.keycloak.rar.AuthorizationRequestContext;
+import org.keycloak.representations.AccessToken;
+import org.keycloak.representations.AccessTokenResponse;
 import org.keycloak.representations.dpop.DPoP;
+import org.keycloak.representations.idm.authorization.AuthorizationRequest;
 import org.keycloak.saml.common.constants.JBossSAMLConstants;
 import org.keycloak.saml.common.constants.JBossSAMLURIConstants;
 import org.keycloak.saml.common.exceptions.ConfigurationException;
 import org.keycloak.saml.common.exceptions.ProcessingException;
 import org.keycloak.saml.common.util.DocumentUtil;
 import org.keycloak.services.CorsErrorResponseException;
+import org.keycloak.services.ServicesLogger;
+import org.keycloak.services.Urls;
+import org.keycloak.services.clientpolicy.ClientPolicyContext;
+import org.keycloak.services.clientpolicy.ClientPolicyException;
+import org.keycloak.services.clientpolicy.context.ResourceOwnerPasswordCredentialsContext;
+import org.keycloak.services.clientpolicy.context.ResourceOwnerPasswordCredentialsResponseContext;
+import org.keycloak.services.clientpolicy.context.ServiceAccountTokenRequestContext;
+import org.keycloak.services.clientpolicy.context.ServiceAccountTokenResponseContext;
+import org.keycloak.services.clientpolicy.context.TokenRefreshContext;
+import org.keycloak.services.clientpolicy.context.TokenRefreshResponseContext;
+import org.keycloak.services.clientpolicy.context.TokenRequestContext;
+import org.keycloak.services.clientpolicy.context.TokenResponseContext;
+import org.keycloak.services.managers.AppAuthManager;
+import org.keycloak.services.managers.AuthenticationManager;
+import org.keycloak.services.managers.AuthenticationSessionManager;
+import org.keycloak.services.managers.ClientManager;
+import org.keycloak.services.managers.RealmManager;
+import org.keycloak.services.managers.UserSessionManager;
 import org.keycloak.services.resources.Cors;
+import org.keycloak.services.util.AuthorizationContextUtil;
+import org.keycloak.services.util.DPoPUtil;
+import org.keycloak.services.util.DefaultClientSessionContext;
+import org.keycloak.services.util.MtlsHoKTokenUtil;
+import org.keycloak.sessions.AuthenticationSessionModel;
+import org.keycloak.sessions.RootAuthenticationSessionModel;
+import org.keycloak.util.TokenUtil;
+import org.keycloak.utils.ProfileHelper;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
@@ -59,11 +116,16 @@ import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
+
 import javax.xml.namespace.QName;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.function.Function;
+import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 /**
  * @author <a href="mailto:sthorger@redhat.com">Stian Thorgersen</a>
@@ -133,7 +195,9 @@ public class TokenEndpoint {
         checkRealm();
         checkGrantType();
 
-        if (!grantType.equals(OAuth2Constants.UMA_GRANT_TYPE)) {
+        if (!grantType.equals(OAuth2Constants.UMA_GRANT_TYPE)
+                // pre-authorized grants are not necessarily used by known clients.
+                && !grantType.equals(PreAuthorizedCodeGrantType.GRANT_TYPE)) {
             checkClient();
             checkParameterDuplicated();
         }
@@ -214,7 +278,7 @@ public class TokenEndpoint {
         for (String key : formParams.keySet()) {
             if (formParams.get(key).size() != 1) {
                 throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_REQUEST, "duplicated parameter",
-                    Response.Status.BAD_REQUEST);
+                        Response.Status.BAD_REQUEST);
             }
         }
     }
@@ -363,15 +427,17 @@ public class TokenEndpoint {
         // Set nonce as an attribute in the ClientSessionContext. Will be used for the token generation
         clientSessionCtx.setAttribute(OIDCLoginProtocol.NONCE_PARAM, codeData.getNonce());
 
-        return createTokenResponse(user, userSession, clientSessionCtx, scopeParam, true, s -> {return new TokenResponseContext(formParams, parseResult, clientSessionCtx, s);});
+        return createTokenResponse(user, userSession, clientSessionCtx, scopeParam, true, s -> {
+            return new TokenResponseContext(formParams, parseResult, clientSessionCtx, s);
+        });
     }
 
     public Response createTokenResponse(UserModel user, UserSessionModel userSession, ClientSessionContext clientSessionCtx,
-        String scopeParam, boolean code, Function<TokenManager.AccessTokenResponseBuilder, ClientPolicyContext> clientPolicyContextGenerator) {
+                                        String scopeParam, boolean code, Function<TokenManager.AccessTokenResponseBuilder, ClientPolicyContext> clientPolicyContextGenerator) {
         AccessToken token = tokenManager.createClientAccessToken(session, realm, client, user, userSession, clientSessionCtx);
 
         TokenManager.AccessTokenResponseBuilder responseBuilder = tokenManager
-            .responseBuilder(realm, client, event, session, userSession, clientSessionCtx).accessToken(token);
+                .responseBuilder(realm, client, event, session, userSession, clientSessionCtx).accessToken(token);
         boolean useRefreshToken = clientConfig.isUseRefreshToken();
         if (useRefreshToken) {
             responseBuilder.generateRefreshToken();
@@ -400,7 +466,7 @@ public class TokenEndpoint {
             } catch (RuntimeException re) {
                 if ("can not get encryption KEK".equals(re.getMessage())) {
                     throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_REQUEST,
-                        "can not get encryption KEK", Response.Status.BAD_REQUEST);
+                            "can not get encryption KEK", Response.Status.BAD_REQUEST);
                 } else {
                     throw re;
                 }
@@ -505,7 +571,7 @@ public class TokenEndpoint {
 
     private void updateClientSession(AuthenticatedClientSessionModel clientSession) {
 
-        if(clientSession == null) {
+        if (clientSession == null) {
             ServicesLogger.LOGGER.clientSessionNull();
             return;
         }
@@ -599,7 +665,7 @@ public class TokenEndpoint {
         updateUserSessionFromClientAuth(userSession);
 
         TokenManager.AccessTokenResponseBuilder responseBuilder = tokenManager
-            .responseBuilder(realm, client, event, session, userSession, clientSessionCtx).generateAccessToken();
+                .responseBuilder(realm, client, event, session, userSession, clientSessionCtx).generateAccessToken();
         boolean useRefreshToken = clientConfig.isUseRefreshToken();
         if (useRefreshToken) {
             responseBuilder.generateRefreshToken();
@@ -898,7 +964,7 @@ public class TokenEndpoint {
             authorizationRequest.addPermissions(permissions, permissionResourceFormat, permissionResourceMatchingUri);
         }
 
-        Metadata metadata = new Metadata();
+        AuthorizationRequest.Metadata metadata = new AuthorizationRequest.Metadata();
 
         String responseIncludeResourceName = formParams.getFirst("response_include_resource_name");
 
@@ -924,13 +990,11 @@ public class TokenEndpoint {
     }
 
     public Response oauth2DeviceCodeToToken() {
-        DeviceGrantType deviceGrantType = new DeviceGrantType(formParams, client, session, this, realm, event, cors);
-        return deviceGrantType.oauth2DeviceFlow();
+        return new DeviceGrantType().process();
     }
 
     public Response cibaGrant() {
-        CibaGrantType grantType = new CibaGrantType(formParams, client, session, this, realm, event, cors);
-        return grantType.cibaGrant();
+        return new CibaGrantType().process();
     }
 
     public static class TokenExchangeSamlProtocol extends SamlProtocol {
