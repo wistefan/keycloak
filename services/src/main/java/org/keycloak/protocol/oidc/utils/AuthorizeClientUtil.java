@@ -17,6 +17,8 @@
 
 package org.keycloak.protocol.oidc.utils;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.jboss.logging.Logger;
 import org.keycloak.http.HttpResponse;
 import org.keycloak.authentication.AuthenticationProcessor;
@@ -35,6 +37,7 @@ import org.keycloak.services.cors.Cors;
 
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
+
 import java.util.Map;
 
 /**
@@ -49,6 +52,11 @@ public class AuthorizeClientUtil {
 
         Response response = processor.authenticateClient();
         if (response != null) {
+            try {
+                logger.infof("The response was %s", new ObjectMapper().writeValueAsString(response.getEntity()));
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException(e);
+            }
             if (cors != null) {
                 cors.allowAllOrigins();
                 HttpResponse httpResponse = session.getContext().getHttpResponse();
@@ -61,8 +69,8 @@ public class AuthorizeClientUtil {
         if (client == null) {
             throwErrorResponseException(Errors.INVALID_CLIENT, "Client authentication ended, but client is null", Response.Status.BAD_REQUEST, cors.allowAllOrigins());
         }
-        
-        if(!client.isEnabled()) {
+
+        if (!client.isEnabled()) {
             event.error(Errors.CLIENT_DISABLED);
             throwErrorResponseException(Errors.INVALID_CLIENT, "Invalid client or Invalid client credentials", Response.Status.UNAUTHORIZED, cors.allowAllOrigins());
         }

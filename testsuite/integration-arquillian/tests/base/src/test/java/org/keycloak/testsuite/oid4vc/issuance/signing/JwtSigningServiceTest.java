@@ -18,6 +18,14 @@
 package org.keycloak.testsuite.oid4vc.issuance.signing;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.bouncycastle.asn1.ASN1Primitive;
+import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
+import org.bouncycastle.crypto.params.RSAKeyParameters;
+import org.bouncycastle.crypto.util.PublicKeyFactory;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.openssl.PEMParser;
+import org.bouncycastle.util.io.pem.PemObject;
+import org.bouncycastle.util.io.pem.PemWriter;
 import org.jboss.logging.Logger;
 import org.junit.Before;
 import org.junit.Test;
@@ -25,6 +33,7 @@ import org.keycloak.TokenVerifier;
 import org.keycloak.common.VerificationException;
 import org.keycloak.common.crypto.CryptoIntegration;
 import org.keycloak.common.util.MultivaluedHashMap;
+import org.keycloak.common.util.PemUtils;
 import org.keycloak.crypto.Algorithm;
 import org.keycloak.crypto.AsymmetricSignatureVerifierContext;
 import org.keycloak.crypto.KeyWrapper;
@@ -39,7 +48,11 @@ import org.keycloak.representations.JsonWebToken;
 import org.keycloak.representations.idm.RealmRepresentation;
 import org.keycloak.testsuite.runonserver.RunOnServerException;
 
+import java.io.StringReader;
+import java.io.StringWriter;
+import java.security.KeyFactory;
 import java.security.PublicKey;
+import java.security.spec.RSAPublicKeySpec;
 import java.time.Instant;
 import java.util.Date;
 import java.util.List;
@@ -61,6 +74,24 @@ public class JwtSigningServiceTest extends OID4VCTest {
         CryptoIntegration.init(this.getClass().getClassLoader());
     }
 
+    @Test
+    public void test() throws Exception {
+        var kw = getRsaKey();
+        PublicKey pub = (PublicKey) kw.getPublicKey();
+        byte[] pubBytes = pub.getEncoded();
+
+        SubjectPublicKeyInfo spkInfo = SubjectPublicKeyInfo.getInstance(pubBytes);
+        ASN1Primitive primitive = spkInfo.parsePublicKey();
+        byte[] publicKeyPKCS1 = primitive.getEncoded();
+        PemObject pemObject = new PemObject("RSA PUBLIC KEY", publicKeyPKCS1);
+        StringWriter stringWriter = new StringWriter();
+        PemWriter pemWriter = new PemWriter(stringWriter);
+        pemWriter.writeObject(pemObject);
+        pemWriter.close();
+        String pemString = stringWriter.toString();
+
+    }
+
     // If an unsupported algorithm is provided, the JWT Sigining Service should not be instantiated.
     @Test(expected = SigningServiceException.class)
     public void testUnsupportedAlgorithm() throws Throwable {
@@ -74,7 +105,8 @@ public class JwtSigningServiceTest extends OID4VCTest {
                                     "unsupported-algorithm",
                                     "JWT",
                                     "did:web:test.org",
-                                    new StaticTimeProvider(1000)));
+                                    new StaticTimeProvider(1000),
+                                    Optional.empty()));
         } catch (RunOnServerException ros) {
             throw ros.getCause();
         }
@@ -93,7 +125,8 @@ public class JwtSigningServiceTest extends OID4VCTest {
                                     Algorithm.RS256,
                                     "JWT",
                                     "did:web:test.org",
-                                    new StaticTimeProvider(1000)));
+                                    new StaticTimeProvider(1000),
+                                    Optional.empty()));
         } catch (RunOnServerException ros) {
             throw ros.getCause();
         }
@@ -148,7 +181,8 @@ public class JwtSigningServiceTest extends OID4VCTest {
                 algorithm,
                 "JWT",
                 "did:web:test.org",
-                new StaticTimeProvider(1000));
+                new StaticTimeProvider(1000),
+                Optional.empty());
 
         VerifiableCredential testCredential = getTestCredential(claims);
 

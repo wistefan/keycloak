@@ -305,7 +305,7 @@ public class OID4VCIssuerEndpoint {
         String nonce = UUID.randomUUID().toString();
         OAuth2Code oAuth2Code = new OAuth2Code(codeId, expiration, nonce, null, null, null, null,
                 clientSessionModel.getUserSession().getId());
-
+        LOGGER.debugf("Persist code for clientSession %s", clientSessionModel.getClient().getId());
         return OAuth2CodeParser.persistCode(session, clientSessionModel, oAuth2Code);
     }
 
