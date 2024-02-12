@@ -17,7 +17,10 @@
 
 package org.keycloak.keys;
 
-import org.keycloak.common.crypto.CryptoIntegration;
+import org.checkerframework.checker.units.qual.A;
+import org.jboss.logging.Logger;
+import org.keycloak.common.util.Base64;
+import org.keycloak.common.util.Base64Url;
 import org.keycloak.common.util.CertificateUtils;
 import org.keycloak.common.util.KeyUtils;
 import org.keycloak.common.util.KeystoreUtil;
@@ -29,11 +32,13 @@ import org.keycloak.crypto.KeyUse;
 import org.keycloak.crypto.KeyWrapper;
 import org.keycloak.jose.jwe.JWEConstants;
 import org.keycloak.models.RealmModel;
+import org.keycloak.protocol.oid4vc.issuance.signing.SigningService;
 
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -49,6 +54,12 @@ import java.security.cert.PKIXParameters;
 import java.security.cert.TrustAnchor;
 import java.security.cert.X509Certificate;
 import java.security.interfaces.ECPrivateKey;
+import java.security.interfaces.EdECKey;
+import java.security.spec.ECParameterSpec;
+import java.security.spec.ECPoint;
+import java.security.spec.ECPublicKeySpec;
+import java.security.spec.EdECPoint;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -62,6 +73,7 @@ import java.util.stream.Stream;
  * @author <a href="mailto:sthorger@redhat.com">Stian Thorgersen</a>
  */
 public class JavaKeystoreKeyProvider implements KeyProvider {
+    private static final Logger LOGGER = Logger.getLogger(JavaKeystoreKeyProvider.class);
 
     private final KeyStatus status;
 
@@ -93,7 +105,7 @@ public class JavaKeystoreKeyProvider implements KeyProvider {
             String keyAlias = model.get(JavaKeystoreKeyProviderFactory.KEY_ALIAS_KEY);
 
             return switch (algorithm) {
-                case Algorithm.PS256, Algorithm.PS384, Algorithm.PS512, Algorithm.RS256, Algorithm.RS384, Algorithm.RS512 ->
+                case Algorithm.HS256, Algorithm.HS384, Algorithm.HS512, Algorithm.RS256, Algorithm.RS384, Algorithm.RS512 ->
                         loadRSAKey(realm, model, keyStore, keyAlias);
                 case Algorithm.ES256, Algorithm.ES384, Algorithm.ES512 -> loadECKey(realm, model, keyStore, keyAlias);
                 default ->
@@ -127,22 +139,21 @@ public class JavaKeystoreKeyProvider implements KeyProvider {
 
     private KeyWrapper loadECKey(RealmModel realm, ComponentModel model, KeyStore keyStore, String keyAlias) throws GeneralSecurityException {
         ECPrivateKey privateKey = (ECPrivateKey) keyStore.getKey(keyAlias, model.get(JavaKeystoreKeyProviderFactory.KEY_PASSWORD_KEY).toCharArray());
-        String curve = AbstractEcdsaKeyProviderFactory.convertECDomainParmNistRepToSecRep(AbstractEcdsaKeyProviderFactory.convertAlgorithmToECDomainParmNistRep(algorithm));
+        KeyFactory keyFactory = KeyFactory.getInstance("EC");
 
-        PublicKey publicKey = CryptoIntegration.getProvider().getEcdsaCryptoProvider().getPublicFromPrivate(privateKey);
+        ECParameterSpec ecSpec = privateKey.getParams();
+        ECPublicKeySpec publicKeySpec = new ECPublicKeySpec(ecSpec.getGenerator(), ecSpec);
+        PublicKey publicKey = keyFactory.generatePublic(publicKeySpec);
 
         KeyPair keyPair = new KeyPair(publicKey, privateKey);
 
-        return createKeyWrapper(keyPair, getCertificate(keyStore, keyPair, keyAlias, realm.getName()), loadCertificateChain(keyStore, keyAlias), KeyType.EC);
-
-    }
-
-    private X509Certificate getCertificate(KeyStore keyStore, KeyPair keyPair, String keyAlias, String realmName) throws KeyStoreException {
         X509Certificate certificate = (X509Certificate) keyStore.getCertificate(keyAlias);
         if (certificate == null) {
-            certificate = CertificateUtils.generateV1SelfSignedCertificate(keyPair, realmName);
+            certificate = CertificateUtils.generateV1SelfSignedCertificate(keyPair, realm.getName());
         }
-        return certificate;
+
+        return createKeyWrapper(keyPair, certificate, loadCertificateChain(keyStore, keyAlias), KeyType.EC);
+
     }
 
     private KeyWrapper loadRSAKey(RealmModel realm, ComponentModel model, KeyStore keyStore, String keyAlias) throws GeneralSecurityException {
@@ -151,7 +162,12 @@ public class JavaKeystoreKeyProvider implements KeyProvider {
 
         KeyPair keyPair = new KeyPair(publicKey, privateKey);
 
-        return createKeyWrapper(keyPair, getCertificate(keyStore, keyPair, keyAlias, realm.getName()), loadCertificateChain(keyStore, keyAlias), KeyType.RSA);
+        X509Certificate certificate = (X509Certificate) keyStore.getCertificate(keyAlias);
+        if (certificate == null) {
+            certificate = CertificateUtils.generateV1SelfSignedCertificate(keyPair, realm.getName());
+        }
+
+        return createKeyWrapper(keyPair, certificate, loadCertificateChain(keyStore, keyAlias), KeyType.RSA);
     }
 
     private List<X509Certificate> loadCertificateChain(KeyStore keyStore, String keyAlias) throws GeneralSecurityException {
@@ -181,6 +197,9 @@ public class JavaKeystoreKeyProvider implements KeyProvider {
         key.setStatus(status);
         key.setPrivateKey(keyPair.getPrivate());
         key.setPublicKey(keyPair.getPublic());
+
+        LOGGER.warnf("Public key is %s - Id: %s", Base64Url.encode(keyPair.getPublic().getEncoded()));
+
         key.setCertificate(certificate);
 
         if (!certificateChain.isEmpty()) {

@@ -29,6 +29,7 @@ import org.keycloak.models.RealmModel;
 import org.keycloak.provider.ConfigurationValidationHelper;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.provider.ProviderConfigurationBuilder;
+import org.keycloak.userprofile.validator.AttributeRequiredByMetadataValidator;
 
 import java.util.List;
 import java.util.stream.Stream;
@@ -65,6 +66,14 @@ public class JavaKeystoreKeyProviderFactory implements KeyProviderFactory {
 
     private List<ProviderConfigProperty> configProperties;
 
+
+    private static ProviderConfigProperty mergedAlgorithmProperties() {
+
+        List<String> algorithms = Stream.concat(Attributes.RS_ALGORITHM_PROPERTY.getOptions().stream(), Attributes.HS_ALGORITHM_PROPERTY.getOptions().stream()).toList();
+
+        return new ProviderConfigProperty(Attributes.ALGORITHM_KEY, "Algorithm", "Intended algorithm for the key", LIST_TYPE, algorithms.toArray());
+
+    }
 
     @Override
     public void init(Config.Scope config) {
