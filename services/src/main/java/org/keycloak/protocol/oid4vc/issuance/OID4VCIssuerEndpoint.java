@@ -373,11 +373,6 @@ public class OID4VCIssuerEndpoint {
         protocolMappers
                 .forEach(mapper -> mapper.setClaimsForCredential(vc, userSessionModel));
 
-        if (vc.getContext() == null || vc.getContext().isEmpty()) {
-            // add default
-            vc.setContext(List.of("https://www.w3.org/2018/credentials/v1"));
-        }
-
         if (vc.getId() == null && vc.getAdditionalProperties().get("id") == null) {
             vc.setId(URI.create(String.format("uri:uuid:%s", UUID.randomUUID())));
         }
