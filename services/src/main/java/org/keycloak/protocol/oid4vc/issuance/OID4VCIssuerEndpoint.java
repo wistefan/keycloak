@@ -4,11 +4,13 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.constraints.NotNull;
 import jakarta.ws.rs.BadRequestException;
+import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.OPTIONS;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
@@ -43,6 +45,7 @@ import org.keycloak.protocol.oidc.utils.OAuth2Code;
 import org.keycloak.protocol.oidc.utils.OAuth2CodeParser;
 import org.keycloak.services.managers.AppAuthManager;
 import org.keycloak.services.managers.AuthenticationManager;
+import org.keycloak.utils.MediaType;
 
 import java.net.URI;
 import java.time.Clock;
@@ -98,6 +101,7 @@ public class OID4VCIssuerEndpoint {
      * Provides URI to the OID4VCI compliant credentials offer
      */
     @GET
+    @Produces(MediaType.APPLICATION_JSON)
     @Path("credential-offer-uri")
     public Response getCredentialOfferURI(@QueryParam("credentialId") String vcId) {
 
@@ -147,6 +151,7 @@ public class OID4VCIssuerEndpoint {
      * Provides an OID4VCI compliant credentials offer
      */
     @GET
+    @Produces(MediaType.APPLICATION_JSON)
     @Path("credential-offer/{nonce}")
     public Response getCredentialOffer(@PathParam("nonce") String nonce) {
 
@@ -199,6 +204,8 @@ public class OID4VCIssuerEndpoint {
      * Requests a credential from the issuer
      */
     @POST
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
     @Path(CREDENTIAL_PATH)
     public Response requestCredential(
             CredentialRequest credentialRequestVO) {

@@ -92,4 +92,9 @@ public class PreAuthorizedCodeGrantType extends OAuth2GrantTypeBase implements E
     public boolean isSupported(Config.Scope config) {
         return Profile.isFeatureEnabled(Profile.Feature.OID4VC_VCI);
     }
+
+    @Override
+    public boolean isSupported() {
+        return Profile.isFeatureEnabled(Profile.Feature.CIBA);
+    }
 }

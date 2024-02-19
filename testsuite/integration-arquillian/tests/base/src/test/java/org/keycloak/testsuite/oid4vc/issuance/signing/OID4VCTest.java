@@ -277,7 +277,8 @@ public abstract class OID4VCTest extends AbstractTestRealmKeycloakTest {
                 Map.of(
                         "keyId", List.of(keyWrapper.getKid()),
                         "algorithmType", List.of(keyWrapper.getAlgorithm()),
-                        "tokenType", List.of("JWT")
+                        "tokenType", List.of("JWT"),
+                        "issuerDid", List.of(TEST_DID.toString())
                 )
         ));
         return componentExportRepresentation;

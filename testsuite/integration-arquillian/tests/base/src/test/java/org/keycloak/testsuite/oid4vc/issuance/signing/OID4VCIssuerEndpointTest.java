@@ -1,64 +1,89 @@
 package org.keycloak.testsuite.oid4vc.issuance.signing;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.ws.rs.core.HttpHeaders;
-import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
-import jakarta.ws.rs.core.UriInfo;
 import org.apache.http.HttpStatus;
-import org.jboss.logging.Logger;
-import org.jboss.resteasy.specimpl.ResteasyHttpHeaders;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClientBuilder;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.keycloak.broker.provider.util.SimpleHttp;
 import org.keycloak.common.crypto.CryptoIntegration;
 import org.keycloak.common.util.MultivaluedHashMap;
-import org.keycloak.common.util.Resteasy;
 import org.keycloak.crypto.Algorithm;
-import org.keycloak.events.EventBuilder;
-import org.keycloak.http.FormPartValue;
-import org.keycloak.http.HttpRequest;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.protocol.oid4vc.issuance.OID4VCIssuerEndpoint;
 import org.keycloak.protocol.oid4vc.issuance.TimeProvider;
 import org.keycloak.protocol.oid4vc.issuance.signing.JwtSigningService;
 import org.keycloak.protocol.oid4vc.model.CredentialOfferURI;
+import org.keycloak.protocol.oid4vc.model.CredentialRequest;
+import org.keycloak.protocol.oid4vc.model.CredentialResponse;
+import org.keycloak.protocol.oid4vc.model.CredentialsOffer;
 import org.keycloak.protocol.oid4vc.model.Format;
-import org.keycloak.protocol.oidc.TokenManager;
-import org.keycloak.protocol.oidc.endpoints.TokenEndpoint;
+import org.keycloak.protocol.oid4vc.model.SupportedCredential;
 import org.keycloak.representations.idm.ClientRepresentation;
 import org.keycloak.representations.idm.RealmRepresentation;
 import org.keycloak.services.managers.AppAuthManager;
+import org.keycloak.testsuite.util.OAuthClient;
 import org.keycloak.testsuite.util.TokenUtil;
 
-import java.security.cert.X509Certificate;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.fail;
 
 public class OID4VCIssuerEndpointTest extends OID4VCTest {
 
-    private static final Logger LOGGER = Logger.getLogger(JwtSigningServiceTest.class);
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     @Rule
     public TokenUtil tokenUtil = new TokenUtil();
 
+    private CloseableHttpClient httpClient;
+
     @Before
     public void setup() {
         CryptoIntegration.init(this.getClass().getClassLoader());
+        httpClient = HttpClientBuilder.create().build();
     }
 
     @Test
-    public void testGetCredentialOfferURI() throws Exception {
+    public void testGetCredentialOfferURI() {
         String token = tokenUtil.getToken();
         testingClient
                 .server(TEST_REALM_NAME)
                 .run((session) -> {
                     try {
-                        testGetCredentialOfferURI(token, session);
+                        AppAuthManager.BearerTokenAuthenticator authenticator = new AppAuthManager.BearerTokenAuthenticator(session);
+                        authenticator.setTokenString(token);
+
+                        TimeProvider timeProvider = new OID4VCTest.StaticTimeProvider(1000);
+                        JwtSigningService jwtSigningService = new JwtSigningService(
+                                session,
+                                getKeyFromSession(session).getKid(),
+                                Algorithm.RS256,
+                                "JWT",
+                                "did:web:issuer.org",
+                                timeProvider,
+                                Optional.empty());
+                        OID4VCIssuerEndpoint oid4VCIssuerEndpoint = new OID4VCIssuerEndpoint(
+                                session,
+                                "did:web:issuer.org",
+                                Map.of(Format.JWT_VC, jwtSigningService),
+                                authenticator,
+                                new ObjectMapper(),
+                                timeProvider);
+                        Response response = oid4VCIssuerEndpoint.getCredentialOfferURI("test-credential");
+
+                        assertEquals("An offer uri should have been returned.", HttpStatus.SC_OK, response.getStatus());
+                        CredentialOfferURI credentialOfferURI = new ObjectMapper().convertValue(response.getEntity(), CredentialOfferURI.class);
+                        assertNotNull("A nonce should be included.", credentialOfferURI.getNonce());
+                        assertNotNull("The issuer uri should be provided.", credentialOfferURI.getIssuer());
                     } catch (Exception e) {
                         throw new RuntimeException(e);
                     }
@@ -66,111 +91,55 @@ public class OID4VCIssuerEndpointTest extends OID4VCTest {
 
     }
 
+    private String getBasePath(String realm) {
+        return suiteContext.getAuthServerInfo().getContextRoot().toString() + "/auth/realms/" + realm + "/protocol/oid4vc/";
+    }
+
     @Test
-    public void all() {
-        String token = tokenUtil.getToken();
-        testingClient
-                .server(TEST_REALM_NAME)
-                .run((session -> test(token, session)));
+    public void testCredentialIssuance() throws Exception {
+
+        SimpleHttp.Response response = SimpleHttp.doGet(getBasePath(TEST_REALM_NAME) + "credential-offer-uri?credentialId=test-credential", httpClient)
+                .auth(tokenUtil.getToken())
+                .asResponse();
+
+        assertEquals("A valid offer uri should be returned", HttpStatus.SC_OK, response.getStatus());
+        CredentialOfferURI credentialOfferURI = new ObjectMapper().convertValue(response.asJson(), CredentialOfferURI.class);
+
+        SimpleHttp.Response offer = SimpleHttp.doGet(getBasePath(TEST_REALM_NAME) + "credential-offer/" + credentialOfferURI.getNonce(), httpClient)
+                .auth(tokenUtil.getToken())
+                .asResponse();
+        assertEquals("A valid offer should be returned", HttpStatus.SC_OK, response.getStatus());
+        CredentialsOffer credentialOffer = new ObjectMapper().convertValue(offer.asJson(), CredentialsOffer.class);
+
+        OAuthClient.AccessTokenResponse accessTokenResponse = oauth.doPreauthorizedTokenRequest(credentialOffer.getGrants().getPreAuthorizedCode().getPreAuthorizedCode());
+
+        assertEquals(HttpStatus.SC_OK, accessTokenResponse.getStatusCode());
+        String theToken = accessTokenResponse.getAccessToken();
+
+        credentialOffer.getCredentials().stream()
+                .map(offeredCredential -> OBJECT_MAPPER.convertValue(offeredCredential, SupportedCredential.class))
+                .forEach(supportedCredential -> {
+                    try {
+                        requestOffer(theToken, supportedCredential);
+                    } catch (IOException e) {
+                        fail("Was not able to get the credential.");
+                    }
+                });
     }
 
-    public static void test(String token, KeycloakSession session) {
-        AppAuthManager.BearerTokenAuthenticator authenticator = new AppAuthManager.BearerTokenAuthenticator(session);
-        authenticator.setTokenString(token);
-        TimeProvider timeProvider = new OID4VCTest.StaticTimeProvider(1000);
-        JwtSigningService jwtSigningService = new JwtSigningService(
-                session,
-                getKeyFromSession(session).getKid(),
-                Algorithm.RS256,
-                "JWT",
-                "did:web:issuer.org",
-                timeProvider,
-                Optional.empty());
-        OID4VCIssuerEndpoint oid4VCIssuerEndpoint = new OID4VCIssuerEndpoint(
-                session,
-                "did:web:issuer.org",
-                Map.of(Format.JWT_VC, jwtSigningService),
-                authenticator,
-                new ObjectMapper(),
-                timeProvider);
-        TokenEndpoint tokenEndpoint = new TokenEndpoint(
-                session,
-                new TokenManager(),
-                new EventBuilder(session.getContext().getRealm(), session, session.getContext().getConnection()));
+    private void requestOffer(String token, SupportedCredential offeredCredential) throws IOException {
+        CredentialRequest request = new CredentialRequest();
+        request.setFormat(offeredCredential.getFormat());
+        request.setCredentialIdentifier(offeredCredential.getId());
 
+        SimpleHttp.Response credentialResponse = SimpleHttp.doPost(getBasePath(TEST_REALM_NAME) + "credential", httpClient)
+                .json(request)
+                .auth(token)
+                .asResponse();
 
-        Response response = oid4VCIssuerEndpoint.getCredentialOfferURI("test-credential");
-        CredentialOfferURI credentialOfferURI = new ObjectMapper().convertValue(response.getEntity(), CredentialOfferURI.class);
-        MultivaluedMap mhm = new jakarta.ws.rs.core.MultivaluedHashMap();
-        mhm.add("grant_type", "urn:ietf:params:oauth:grant-type:pre-authorized_code");
-        mhm.add("code", credentialOfferURI.getNonce());
-        MultivaluedMap headers = new jakarta.ws.rs.core.MultivaluedHashMap();
-        headers.add("Content-Type", "application/x-www-form-urlencoded");
-        Resteasy.pushContext(HttpRequest.class, getRequest(mhm, new ResteasyHttpHeaders(headers), null));
-        tokenEndpoint.processGrantRequest();
-    }
+        assertEquals(HttpStatus.SC_OK, credentialResponse.getStatus());
+        CredentialResponse credentialResponseVO = new ObjectMapper().convertValue(credentialResponse.asJson(), CredentialResponse.class);
 
-    public static HttpRequest getRequest(MultivaluedMap<String, String> formParameters, HttpHeaders headers, UriInfo uriInfo) {
-        return new HttpRequest() {
-            @Override
-            public String getHttpMethod() {
-                return "POST";
-            }
-
-            @Override
-            public MultivaluedMap<String, String> getDecodedFormParameters() {
-                return formParameters;
-            }
-
-            @Override
-            public MultivaluedMap<String, FormPartValue> getMultiPartFormParameters() {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public HttpHeaders getHttpHeaders() {
-                return headers;
-            }
-
-            @Override
-            public X509Certificate[] getClientCertificateChain() {
-                return new X509Certificate[0];
-            }
-
-            @Override
-            public UriInfo getUri() {
-                return uriInfo;
-            }
-        };
-    }
-
-    public static void testGetCredentialOfferURI(String token, KeycloakSession session) {
-        AppAuthManager.BearerTokenAuthenticator authenticator = new AppAuthManager.BearerTokenAuthenticator(session);
-        authenticator.setTokenString(token);
-        TimeProvider timeProvider = new OID4VCTest.StaticTimeProvider(1000);
-        JwtSigningService jwtSigningService = new JwtSigningService(
-                session,
-                getKeyFromSession(session).getKid(),
-                Algorithm.RS256,
-                "JWT",
-                "did:web:issuer.org",
-                timeProvider,
-                Optional.empty());
-        OID4VCIssuerEndpoint oid4VCIssuerEndpoint = new OID4VCIssuerEndpoint(
-                session,
-                "did:web:issuer.org",
-                Map.of(Format.JWT_VC, jwtSigningService),
-                authenticator,
-                new ObjectMapper(),
-                timeProvider);
-        Response response = oid4VCIssuerEndpoint.getCredentialOfferURI("test-credential");
-
-        assertEquals("An offer uri should have been returned.", HttpStatus.SC_OK, response.getStatus());
-        CredentialOfferURI credentialOfferURI = new ObjectMapper().convertValue(response.getEntity(), CredentialOfferURI.class);
-        assertNotNull("A nonce should be included.", credentialOfferURI.getNonce());
-        assertNotNull("The issuer uri should be provided.", credentialOfferURI.getIssuer());
-
-        assertNotNull("", session.getContext().getAuthenticationSession().getUserSessionNotes().get(credentialOfferURI.getNonce()));
     }
 
     @Override
@@ -201,6 +170,11 @@ public class OID4VCIssuerEndpointTest extends OID4VCTest {
             testRealm.getUsers().add(getUserRepresentation(Map.of(clientRepresentation.getClientId(), List.of("testRole"))));
         } else {
             testRealm.setUsers(List.of(getUserRepresentation(Map.of(clientRepresentation.getClientId(), List.of("testRole")))));
+        }
+        if (testRealm.getAttributes() != null) {
+            testRealm.getAttributes().put("issuerDid", TEST_DID.toString());
+        } else {
+            testRealm.setAttributes(Map.of("issuerDid", TEST_DID.toString()));
         }
     }
 
