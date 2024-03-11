@@ -47,7 +47,7 @@ public class OAuth2GrantTypeSpi implements Spi {
 
     @Override
     public Class<? extends ProviderFactory> getProviderFactoryClass() {
-        return OAuth2GrantTypeFactory.class;
+        return OAuth2GrantType.class;
     }
 
 }

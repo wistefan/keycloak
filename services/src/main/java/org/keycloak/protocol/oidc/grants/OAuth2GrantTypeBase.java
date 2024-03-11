@@ -28,10 +28,7 @@ import java.util.function.Function;
 
 import org.jboss.logging.Logger;
 
-<<<<<<< HEAD
-=======
 import org.keycloak.Config;
->>>>>>> OAuth 2.0 Grant Type SPI
 import org.keycloak.OAuth2Constants;
 import org.keycloak.OAuthErrorException;
 import org.keycloak.common.ClientConnection;
@@ -46,10 +43,7 @@ import org.keycloak.models.AuthenticatedClientSessionModel;
 import org.keycloak.models.ClientModel;
 import org.keycloak.models.ClientSessionContext;
 import org.keycloak.models.KeycloakSession;
-<<<<<<< HEAD
-=======
 import org.keycloak.models.KeycloakSessionFactory;
->>>>>>> OAuth 2.0 Grant Type SPI
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.UserSessionModel;
@@ -64,11 +58,7 @@ import org.keycloak.services.CorsErrorResponseException;
 import org.keycloak.services.ServicesLogger;
 import org.keycloak.services.clientpolicy.ClientPolicyContext;
 import org.keycloak.services.clientpolicy.ClientPolicyException;
-<<<<<<< HEAD
-import org.keycloak.services.cors.Cors;
-=======
 import org.keycloak.services.resources.Cors;
->>>>>>> OAuth 2.0 Grant Type SPI
 import org.keycloak.services.util.AuthorizationContextUtil;
 import org.keycloak.services.util.DPoPUtil;
 import org.keycloak.services.util.MtlsHoKTokenUtil;
@@ -83,16 +73,8 @@ public abstract class OAuth2GrantTypeBase implements OAuth2GrantType {
 
     private static final Logger logger = Logger.getLogger(OAuth2GrantTypeBase.class);
 
-<<<<<<< HEAD
-<<<<<<< HEAD
     protected OAuth2GrantType.Context context;
 
-=======
->>>>>>> OAuth 2.0 Grant Type SPI
-=======
-    protected OAuth2GrantType.Context context;
-
->>>>>>> - rework grant type resolution to use supports() in addition to grant type
     protected KeycloakSession session;
     protected RealmModel realm;
     protected ClientModel client;
@@ -108,18 +90,9 @@ public abstract class OAuth2GrantTypeBase implements OAuth2GrantType {
     protected HttpResponse response;
     protected HttpHeaders headers;
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-    protected void setContext(Context context) {
-        this.context = context;
-=======
-    protected void initialize(Context context) {
->>>>>>> OAuth 2.0 Grant Type SPI
-=======
     @Override
     public void setContext(Context context) {
         this.context = context;
->>>>>>> - rework grant type resolution to use supports() in addition to grant type
         this.session = context.session;
         this.realm = context.realm;
         this.client = context.client;
@@ -131,22 +104,11 @@ public abstract class OAuth2GrantTypeBase implements OAuth2GrantType {
         this.headers = context.headers;
         this.formParams = context.formParams;
         this.event = context.event;
-<<<<<<< HEAD
-        this.cors = context.cors;
-        this.tokenManager = (TokenManager) context.tokenManager;
-        this.dPoP = context.dPoP;
-    }
-
-=======
         this.cors = (Cors) context.cors;
         this.tokenManager = (TokenManager) context.tokenManager;
         this.dPoP = context.dPoP;
     }
-<<<<<<< HEAD
->>>>>>> OAuth 2.0 Grant Type SPI
-=======
 
->>>>>>> - rework grant type resolution to use supports() in addition to grant type
     protected Response createTokenResponse(UserModel user, UserSessionModel userSession, ClientSessionContext clientSessionCtx,
         String scopeParam, boolean code, Function<TokenManager.AccessTokenResponseBuilder, ClientPolicyContext> clientPolicyContextGenerator) {
         AccessToken token = tokenManager.createClientAccessToken(session, realm, client, user, userSession, clientSessionCtx);
@@ -309,8 +271,6 @@ public abstract class OAuth2GrantTypeBase implements OAuth2GrantType {
     public void close() {
     }
 
-<<<<<<< HEAD
-=======
     @Override
     public void postInit(KeycloakSessionFactory factory) {
         OAuth2GrantManager.register(this);
@@ -320,5 +280,4 @@ public abstract class OAuth2GrantTypeBase implements OAuth2GrantType {
     public void init(Config.Scope config) {
     }
 
->>>>>>> OAuth 2.0 Grant Type SPI
 }

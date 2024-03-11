@@ -56,24 +56,11 @@ import org.keycloak.util.TokenUtil;
  */
 public class ResourceOwnerPasswordCredentialsGrantType extends OAuth2GrantTypeBase {
 
-<<<<<<< HEAD
-=======
     private static final String PROVIDER_ID = "password";
->>>>>>> OAuth 2.0 Grant Type SPI
     private static final Logger logger = Logger.getLogger(ResourceOwnerPasswordCredentialsGrantType.class);
 
     @Override
-<<<<<<< HEAD
-    public Response process(Context context) {
-<<<<<<< HEAD
-        setContext(context);
-=======
-        initialize(context);
->>>>>>> OAuth 2.0 Grant Type SPI
-
-=======
     public Response process() {
->>>>>>> - rework grant type resolution to use supports() in addition to grant type
         event.detail(Details.AUTH_METHOD, "oauth_credentials");
 
         if (!client.isDirectAccessGrantsEnabled()) {
@@ -108,10 +95,6 @@ public class ResourceOwnerPasswordCredentialsGrantType extends OAuth2GrantTypeBa
         AuthenticationProcessor processor = new AuthenticationProcessor();
         processor.setAuthenticationSession(authSession)
                 .setFlowId(flowId)
-<<<<<<< HEAD
-                .setFlowPath("token")
-=======
->>>>>>> OAuth 2.0 Grant Type SPI
                 .setConnection(clientConnection)
                 .setEventBuilder(event)
                 .setRealm(realm)
@@ -171,24 +154,11 @@ public class ResourceOwnerPasswordCredentialsGrantType extends OAuth2GrantTypeBa
     }
 
     @Override
-<<<<<<< HEAD
-=======
     public String getGrantType() {
         return OAuth2Constants.PASSWORD;
     }
 
     @Override
-<<<<<<< HEAD
->>>>>>> OAuth 2.0 Grant Type SPI
-    public EventType getEventType() {
-        return EventType.LOGIN;
-    }
-
-<<<<<<< HEAD
-=======
-    @Override
-=======
->>>>>>> - rework grant type resolution to use supports() in addition to grant type
     public OAuth2GrantType create(KeycloakSession session) {
         return new ResourceOwnerPasswordCredentialsGrantType();
     }
@@ -198,5 +168,4 @@ public class ResourceOwnerPasswordCredentialsGrantType extends OAuth2GrantTypeBa
         return PROVIDER_ID;
     }
 
->>>>>>> OAuth 2.0 Grant Type SPI
 }

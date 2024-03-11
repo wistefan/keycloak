@@ -32,28 +32,17 @@ import org.keycloak.models.ClientModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.provider.Provider;
+import org.keycloak.provider.ProviderFactory;
 import org.keycloak.representations.dpop.DPoP;
-import org.keycloak.services.cors.Cors;
 
 /**
  * Provider interface for OAuth 2.0 grant types
  *
  * @author <a href="mailto:demetrio@carretti.pro">Dmitry Telegin</a>
  */
-public interface OAuth2GrantType extends Provider {
+public interface OAuth2GrantType extends Provider, ProviderFactory<OAuth2GrantType> {
 
     /**
-<<<<<<< HEAD
-     * Returns the event type associated with this OAuth 2.0 grant type.
-     *
-     * @return event type
-     */
-    EventType getEventType();
-
-    /**
-     * Processes grant request.
-     * @param context grant request context
-=======
      * Returns the name of the OAuth 2.0 grant type implemented by this provider.
      * This value will be matched against the "grant_type" token request parameter.
      *
@@ -79,7 +68,6 @@ public interface OAuth2GrantType extends Provider {
 
     /**
      * Processes grant request.
->>>>>>> - rework grant type resolution to use supports() in addition to grant type
      *
      * @return token response
      */
@@ -97,21 +85,23 @@ public interface OAuth2GrantType extends Provider {
         protected HttpHeaders headers;
         protected MultivaluedMap<String, String> formParams;
         protected EventBuilder event;
-        protected Cors cors;
+        protected Object cors;
         protected Object tokenManager;
         protected DPoP dPoP;
 
-        public Context(KeycloakSession session, Object clientConfig, Map<String, String> clientAuthAttributes,
-                MultivaluedMap<String, String> formParams, EventBuilder event, Cors cors, Object tokenManager, DPoP dPoP) {
+        public Context(KeycloakSession session, RealmModel realm,
+                ClientModel client, Object clientConfig, ClientConnection clientConnection, Map<String, String> clientAuthAttributes,
+                HttpRequest request, HttpResponse response, HttpHeaders headers, MultivaluedMap<String, String> formParams,
+                EventBuilder event, Object cors, Object tokenManager, DPoP dPoP) {
             this.session = session;
-            this.realm = session.getContext().getRealm();
-            this.client = session.getContext().getClient();
+            this.realm = realm;
+            this.client = client;
             this.clientConfig = clientConfig;
-            this.clientConnection = session.getContext().getConnection();
+            this.clientConnection = clientConnection;
             this.clientAuthAttributes = clientAuthAttributes;
-            this.request = session.getContext().getHttpRequest();
-            this.response = session.getContext().getHttpResponse();
-            this.headers = session.getContext().getRequestHeaders();
+            this.request = request;
+            this.response = response;
+            this.headers = headers;
             this.formParams = formParams;
             this.event = event;
             this.cors = cors;
@@ -136,29 +126,12 @@ public interface OAuth2GrantType extends Provider {
             this.dPoP = context.dPoP;
         }
 
-<<<<<<< HEAD
-        public void setFormParams(MultivaluedHashMap<String, String> formParams) {
-            this.formParams = formParams;
-        }
-
-        public void setClient(ClientModel client) {
-            this.client = client;
-        }
-
-        public void setClientConfig(Object clientConfig) {
-            this.clientConfig = clientConfig;
-        }
-
-        public void setClientAuthAttributes(Map<String, String> clientAuthAttributes) {
-            this.clientAuthAttributes = clientAuthAttributes;
-=======
         public KeycloakSession getSession() {
             return session;
         }
 
         public void setFormParams(MultivaluedHashMap<String, String> formParams) {
             this.formParams = formParams;
->>>>>>> - rework grant type resolution to use supports() in addition to grant type
         }
 
     }

@@ -20,12 +20,6 @@ package org.keycloak.protocol.oidc.grants;
 import jakarta.ws.rs.InternalServerErrorException;
 import jakarta.ws.rs.core.Response;
 
-<<<<<<< HEAD
-import org.keycloak.events.Details;
-import org.keycloak.events.EventType;
-import org.keycloak.protocol.oidc.TokenExchangeContext;
-import org.keycloak.protocol.oidc.TokenExchangeProvider;
-=======
 import org.keycloak.OAuth2Constants;
 import org.keycloak.common.Profile;
 import org.keycloak.events.Details;
@@ -34,7 +28,6 @@ import org.keycloak.protocol.oidc.TokenExchangeContext;
 import org.keycloak.protocol.oidc.TokenExchangeProvider;
 import org.keycloak.provider.EnvironmentDependentProviderFactory;
 import org.keycloak.utils.ProfileHelper;
->>>>>>> OAuth 2.0 Grant Type SPI
 
 /**
  * OAuth 2.0 Authorization Code Grant
@@ -44,23 +37,10 @@ import org.keycloak.utils.ProfileHelper;
  */
 public class TokenExchangeGrantType extends OAuth2GrantTypeBase implements EnvironmentDependentProviderFactory {
 
-<<<<<<< HEAD
-    @Override
-    public Response process(Context context) {
-        setContext(context);
-=======
     private static final String PROVIDER_ID = "token_exchange";
 
     @Override
-<<<<<<< HEAD
-    public Response process(Context context) {
-        initialize(context);
-        ProfileHelper.requireFeature(Profile.Feature.TOKEN_EXCHANGE);
->>>>>>> OAuth 2.0 Grant Type SPI
-
-=======
     public Response process() {
->>>>>>> - rework grant type resolution to use supports() in addition to grant type
         event.detail(Details.AUTH_METHOD, "token_exchange");
         event.client(client);
 
@@ -87,25 +67,15 @@ public class TokenExchangeGrantType extends OAuth2GrantTypeBase implements Envir
     }
 
     @Override
-<<<<<<< HEAD
-=======
     public String getGrantType() {
         return OAuth2Constants.TOKEN_EXCHANGE_GRANT_TYPE;
     }
 
     @Override
-<<<<<<< HEAD
->>>>>>> OAuth 2.0 Grant Type SPI
-    public EventType getEventType() {
-        return EventType.TOKEN_EXCHANGE;
-=======
     public OAuth2GrantType create(KeycloakSession session) {
         return new TokenExchangeGrantType();
->>>>>>> - rework grant type resolution to use supports() in addition to grant type
     }
 
-<<<<<<< HEAD
-=======
     @Override
     public boolean isSupported() {
         return Profile.isFeatureEnabled(Profile.Feature.TOKEN_EXCHANGE);
@@ -116,5 +86,4 @@ public class TokenExchangeGrantType extends OAuth2GrantTypeBase implements Envir
         return PROVIDER_ID;
     }
 
->>>>>>> OAuth 2.0 Grant Type SPI
 }

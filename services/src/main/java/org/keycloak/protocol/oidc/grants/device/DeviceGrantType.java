@@ -44,10 +44,7 @@ import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 import org.keycloak.protocol.oidc.OIDCLoginProtocolService;
 import org.keycloak.protocol.oidc.TokenManager;
 import org.keycloak.protocol.oidc.endpoints.AuthorizationEndpoint;
-<<<<<<< HEAD
 import org.keycloak.protocol.oidc.grants.OAuth2GrantType;
-=======
->>>>>>> OAuth 2.0 Grant Type SPI
 import org.keycloak.protocol.oidc.grants.OAuth2GrantTypeBase;
 import org.keycloak.protocol.oidc.grants.device.clientpolicy.context.DeviceTokenRequestContext;
 import org.keycloak.protocol.oidc.grants.device.clientpolicy.context.DeviceTokenResponseContext;
@@ -77,12 +74,9 @@ import org.keycloak.protocol.oidc.grants.OAuth2GrantType;
  * @author <a href="mailto:h2-wada@nri.co.jp">Hiroyuki Wada</a>
  * @author <a href="mailto:michito.okai.zn@hitachi.com">Michito Okai</a>
  */
-public class DeviceGrantType extends OAuth2GrantTypeBase {
-<<<<<<< HEAD
-=======
+public class DeviceGrantType extends OAuth2GrantTypeBase implements EnvironmentDependentProviderFactory {
 
     private static final String PROVIDER_ID = "device_code";
->>>>>>> OAuth 2.0 Grant Type SPI
 
     // OAuth 2.0 Device Authorization Grant
     public static final String OAUTH2_DEVICE_VERIFIED_USER_CODE = "OAUTH2_DEVICE_VERIFIED_USER_CODE";
@@ -215,17 +209,7 @@ public class DeviceGrantType extends OAuth2GrantTypeBase {
     }
 
     @Override
-<<<<<<< HEAD
-    public Response process(Context context) {
-<<<<<<< HEAD
-        setContext(context);
-=======
-        initialize(context);
->>>>>>> OAuth 2.0 Grant Type SPI
-
-=======
     public Response process() {
->>>>>>> - rework grant type resolution to use supports() in addition to grant type
         if (!realm.getOAuth2DeviceConfig().isOAuth2DeviceAuthorizationGrantEnabled(client)) {
             event.error(Errors.NOT_ALLOWED);
             throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_GRANT,
@@ -358,27 +342,18 @@ public class DeviceGrantType extends OAuth2GrantTypeBase {
     }
 
     @Override
-<<<<<<< HEAD
-=======
     public String getGrantType() {
         return OAuth2Constants.DEVICE_CODE_GRANT_TYPE;
     }
 
     @Override
-<<<<<<< HEAD
->>>>>>> OAuth 2.0 Grant Type SPI
-    public EventType getEventType() {
-        return EventType.OAUTH2_DEVICE_CODE_TO_TOKEN;
-    }
-
-<<<<<<< HEAD
-}
-=======
-    @Override
-=======
->>>>>>> - rework grant type resolution to use supports() in addition to grant type
     public OAuth2GrantType create(KeycloakSession session) {
         return new DeviceGrantType();
+    }
+
+    @Override
+    public boolean isSupported() {
+        return Profile.isFeatureEnabled(Profile.Feature.DEVICE_FLOW);
     }
 
     @Override
@@ -387,4 +362,3 @@ public class DeviceGrantType extends OAuth2GrantTypeBase {
     }
 
 }
->>>>>>> OAuth 2.0 Grant Type SPI

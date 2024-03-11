@@ -18,16 +18,8 @@
 
 package org.keycloak.protocol.oidc.grants.ciba;
 
-<<<<<<< HEAD
-<<<<<<< HEAD
 import java.util.Map;
 
-=======
->>>>>>> OAuth 2.0 Grant Type SPI
-=======
-import java.util.Map;
-
->>>>>>> - rework grant type resolution to use supports() in addition to grant type
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriBuilder;
 
@@ -51,14 +43,7 @@ import org.keycloak.models.utils.KeycloakModelUtils;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 import org.keycloak.protocol.oidc.OIDCLoginProtocolService;
 import org.keycloak.protocol.oidc.TokenManager;
-<<<<<<< HEAD
-<<<<<<< HEAD
 import org.keycloak.protocol.oidc.grants.OAuth2GrantType;
-=======
->>>>>>> OAuth 2.0 Grant Type SPI
-=======
-import org.keycloak.protocol.oidc.grants.OAuth2GrantType;
->>>>>>> - rework grant type resolution to use supports() in addition to grant type
 import org.keycloak.protocol.oidc.grants.OAuth2GrantTypeBase;
 import org.keycloak.protocol.oidc.grants.ciba.channel.CIBAAuthenticationRequest;
 import org.keycloak.protocol.oidc.grants.ciba.clientpolicy.context.BackchannelTokenRequestContext;
@@ -75,16 +60,6 @@ import org.keycloak.services.managers.UserConsentManager;
 import org.keycloak.services.util.DefaultClientSessionContext;
 import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.sessions.RootAuthenticationSessionModel;
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-import org.keycloak.utils.ProfileHelper;
-
-import java.util.Map;
-import org.keycloak.protocol.oidc.grants.OAuth2GrantType;
->>>>>>> OAuth 2.0 Grant Type SPI
-=======
->>>>>>> - rework grant type resolution to use supports() in addition to grant type
 
 /**
  * OpenID Connect Client-Initiated Backchannel Authentication Flow
@@ -134,19 +109,7 @@ public class CibaGrantType extends OAuth2GrantTypeBase implements EnvironmentDep
     }
 
     @Override
-<<<<<<< HEAD
-    public Response process(Context context) {
-<<<<<<< HEAD
-        setContext(context);
-=======
-        initialize(context);
-
-        ProfileHelper.requireFeature(Profile.Feature.CIBA);
->>>>>>> OAuth 2.0 Grant Type SPI
-
-=======
     public Response process() {
->>>>>>> - rework grant type resolution to use supports() in addition to grant type
         if (!realm.getCibaPolicy().isOIDCCIBAGrantEnabled(client)) {
             event.error(Errors.NOT_ALLOWED);
             throw new CorsErrorResponseException(cors, OAuthErrorException.INVALID_GRANT,
@@ -327,25 +290,15 @@ public class CibaGrantType extends OAuth2GrantTypeBase implements EnvironmentDep
     }
 
     @Override
-<<<<<<< HEAD
-=======
     public String getGrantType() {
         return OAuth2Constants.CIBA_GRANT_TYPE;
     }
 
     @Override
-<<<<<<< HEAD
->>>>>>> OAuth 2.0 Grant Type SPI
-    public EventType getEventType() {
-        return EventType.AUTHREQID_TO_TOKEN;
-=======
     public OAuth2GrantType create(KeycloakSession session) {
         return new CibaGrantType();
->>>>>>> - rework grant type resolution to use supports() in addition to grant type
     }
 
-<<<<<<< HEAD
-=======
     @Override
     public boolean isSupported() {
         return Profile.isFeatureEnabled(Profile.Feature.CIBA);
@@ -356,5 +309,4 @@ public class CibaGrantType extends OAuth2GrantTypeBase implements EnvironmentDep
         return PROVIDER_ID;
     }
 
->>>>>>> OAuth 2.0 Grant Type SPI
 }
